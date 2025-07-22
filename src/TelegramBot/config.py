@@ -15,6 +15,12 @@ TELEGRAM_TOKEN_ENV = os.getenv('TELEGRAM_TOKEN', '')
 ADMIN_ID = 6040522700  # 管理员 TG ID
 ALLOWED_USERS = {ADMIN_ID}  # 白名单用户，可扩展为数据库
 
+
+BILI_COOKIE = {
+    'SESSDATA': os.getenv('SESSDATA')
+}
+
+
 # —— 速率限制 ——
 MIN_MSG_INTERVAL = 2.0  # 2 秒只能发一次
 DEFAULT_DOWNLOAD_THREADS = 8    # 默认线程

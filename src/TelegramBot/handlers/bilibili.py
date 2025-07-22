@@ -14,7 +14,7 @@ from telegram.ext import ContextTypes
 
 from BilibiliDownload.bilibili_post import BilibiliPost  # 你的脚本
 from TelegramBot.cleaner import purge_old_files
-from TelegramBot.config import BILI_SAVE_DIR, MAX_THREAD_WORKERS, ADMIN_ID, EXCEPTION_MSG
+from TelegramBot.config import BILI_SAVE_DIR, MAX_THREAD_WORKERS, ADMIN_ID, EXCEPTION_MSG, BILI_COOKIE
 from TelegramBot.task_manager import TaskManager
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.uploader import upload
@@ -61,7 +61,7 @@ def _download_or_hit(url: str):
     """解析→决定：返回 (Path | str | None, bvid, title/md_link)"""
     result = Bili
 
-    post = BilibiliPost(url, threads=8).fetch()  # 解析
+    post = BilibiliPost(url, threads=8, cookie=BILI_COOKIE).fetch()  # 解析
     post.save_dir = BILI_SAVE_DIR
     post.merge_dir = BILI_SAVE_DIR
     video_id = post.bvid
