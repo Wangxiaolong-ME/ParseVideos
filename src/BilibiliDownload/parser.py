@@ -7,6 +7,7 @@ import json
 from typing import Any
 import requests
 from bs4 import BeautifulSoup
+from pydantic.v1.mypy import plugin
 
 from BilibiliDownload.exceptions import BilibiliParseError
 from PublicMethods.logger import get_logger, setup_log
@@ -29,7 +30,7 @@ class BilibiliParser:
         self.title = None
         self.video_options = []  # 列表项: {'quality': int, 'description': str, 'url': str}
         self.audio_options = []  # 列表项: {'quality': int, 'url': str}
-        self.preview_video_url = None   # 如果视频是预览视频，后续直通车，下载上传，无需其余逻辑判断
+        self.preview_video_url = None  # 如果视频是预览视频，后续直通车，下载上传，无需其余逻辑判断
 
     def _parse_url(self):
         """
@@ -166,6 +167,12 @@ class BilibiliParser:
                 raise Exception("_bangumi_fetch, 无法提取视频信息")
 
             result = playurl_data.get('data', {}).get('result', {})
+            plugin = result.get('plugins')
+            if plugin := result.get('plugins'):
+                for plug in plugin:
+                    if plug['name'] == "AreaLimitPanel":
+                        raise Exception("限制地区播放，国外无法收到下发内容")
+
             log.debug(f"_bangumi_fetch_result: {result}")
             self.bvid = result.get('arc').get('bvid')
             play_type = result.get('play_video_type')
@@ -208,8 +215,8 @@ class BilibiliParser:
                         'url': url,
                         'gear_name': f"{v['height']}P",  # 480P
                         'size_mb': round(size_mb, 2),
-                        'duration':duration,    # 内容时长
-                        'bandwidth': v['bandwidth'],    # # 比特率用于后续精准计算文件大小
+                        'duration': duration,  # 内容时长
+                        'bandwidth': v['bandwidth'],  # # 比特率用于后续精准计算文件大小
                         'height': v['height'],
                         'width': v['width'],
                     })
@@ -223,8 +230,8 @@ class BilibiliParser:
                         'quality': q,
                         'url': url,
                         'size_mb': round(size_mb, 2),
-                        'duration': duration,   # # 内容时长
-                        'bandwidth': a['bandwidth'],    # 比特率用于后续精准计算文件大小
+                        'duration': duration,  # # 内容时长
+                        'bandwidth': a['bandwidth'],  # 比特率用于后续精准计算文件大小
                     })
 
         if '/bangumi' in self.url:
