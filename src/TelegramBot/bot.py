@@ -62,7 +62,7 @@ def main() -> None:
 
 # 默认 /start
 async def _start(update, ctx):
-    await update.message.reply_text("欢迎！使用 /bilibili /douying /music 开始下载")
+    await update.message.reply_text("欢迎！直接发送视频链接开始下载。")
 
 
 if __name__ == "__main__":
