@@ -1,5 +1,7 @@
 import os
 
+from requests import PreparedRequest
+from shlex import quote as sh
 
 def check_file_size(file_path: str, max_size_mb: float = None, ndigits=2) -> bool | float:
     """
@@ -13,3 +15,21 @@ def check_file_size(file_path: str, max_size_mb: float = None, ndigits=2) -> boo
         return file_size <= max_size_mb
     else:
         return round(file_size, ndigits)
+
+
+def prepared_to_curl(prep: PreparedRequest) -> str:
+    """
+    把 PreparedRequest 转换成等效 cURL 命令。
+    Usage:
+        resp = session.send(prep)
+        print(prepared_to_curl(prep))
+    """
+    cmd = ["curl", "-X", prep.method]
+    # headers
+    for k, v in prep.headers.items():
+        cmd += ["-H", sh(f"{k}: {v}")]
+    # body
+    if prep.body:
+        cmd += ["--data-binary", sh(prep.body if isinstance(prep.body, str) else prep.body.decode())]
+    cmd.append(sh(prep.url))
+    return " \\\n  ".join(cmd)

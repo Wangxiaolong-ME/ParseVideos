@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from BilibiliDownload.exceptions import BilibiliParseError
 from PublicMethods.logger import get_logger, setup_log
 from PublicMethods.m_download import Downloader
+from PublicMethods.tools import prepared_to_curl
 
 setup_log()
 log = get_logger(__name__)
@@ -123,6 +124,8 @@ class BilibiliParser:
 
     def fetch(self):
         resp = self.session.get(self.url, headers=self.headers, cookies=self.cookie, timeout=10)
+        curl = prepared_to_curl(resp.request)
+        log.warning(f"curl请求： {curl}")
         resp.raise_for_status()
         html = resp.text
         html = html.replace('\n', '')
