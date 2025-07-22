@@ -129,6 +129,7 @@ class BilibiliParser:
         resp.raise_for_status()
         html = resp.text
         html = html.replace('\n', '')
+        log.warning(f"响应长度:{len(html)}")
         log.debug(f"fetch_resp:  {html}")
         soup = BeautifulSoup(html, 'html.parser')
         script_tags = soup.find_all('script')
