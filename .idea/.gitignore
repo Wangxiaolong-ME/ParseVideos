@@ -1,0 +1,9 @@
+# 默认忽略的文件
+/shelf/
+/workspace.xml
+__pycache__/
+.env
+logs/
+.vscode/
+.idea/
+.DS_Store
