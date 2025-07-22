@@ -8,9 +8,9 @@ from typing import Any
 import requests
 from bs4 import BeautifulSoup
 
-from src.BilibiliDownload.exceptions import BilibiliParseError
-from src.PublicMethods.logger import get_logger, setup_log
-from src.PublicMethods.m_download import Downloader
+from BilibiliDownload.exceptions import BilibiliParseError
+from PublicMethods.logger import get_logger, setup_log
+from PublicMethods.m_download import Downloader
 
 setup_log()
 log = get_logger(__name__)

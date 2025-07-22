@@ -11,12 +11,12 @@ from typing import List, Optional, Union
 
 import requests
 
-from src.DouyinDownload.config import DEFAULT_SAVE_DIR
-from src.PublicMethods.m_download import Downloader
-from src.DouyinDownload.exceptions import ParseError
-from src.DouyinDownload.models import VideoOption
-from src.DouyinDownload.parser import DouyinParser
-from src.PublicMethods.logger import get_logger, setup_log
+from DouyinDownload.config import DEFAULT_SAVE_DIR
+from PublicMethods.m_download import Downloader
+from DouyinDownload.exceptions import ParseError
+from DouyinDownload.models import VideoOption
+from DouyinDownload.parser import DouyinParser
+from PublicMethods.logger import get_logger, setup_log
 from TelegramBot.config import DOUYIN_DOWNLOAD_THREADS
 
 setup_log()

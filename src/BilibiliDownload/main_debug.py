@@ -5,13 +5,13 @@
 """
 import os
 import logging
-from src.PublicMethods.logger import setup_log, get_logger
+from PublicMethods.logger import setup_log, get_logger
 
 # 全局日志初始化，设置为 DEBUG 级别以便调试
 setup_log(logging.DEBUG, 'BilibiliDownload')
 log = get_logger(__name__)
-from src.BilibiliDownload.bilibili_post import BilibiliPost
-from src.BilibiliDownload.config import DEFAULT_SAVE_DIR
+from BilibiliDownload.bilibili_post import BilibiliPost
+from BilibiliDownload.config import DEFAULT_SAVE_DIR
 
 
 def run_bilibili_debug(

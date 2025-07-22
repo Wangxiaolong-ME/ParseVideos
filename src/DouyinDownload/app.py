@@ -13,7 +13,7 @@ import asyncio # 新增导入 asyncio
 # 导入您的核心业务逻辑和日志模块
 from douyin_post import DouyinPost
 from exceptions import DouyinDownloadException, URLExtractionError, ParseError, DownloadError
-from src.PublicMethods.logger import setup_log, get_logger
+from PublicMethods.logger import setup_log, get_logger
 from config import DEFAULT_SAVE_DIR, DEFAULT_DOWNLOAD_THREADS
 
 

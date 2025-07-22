@@ -9,9 +9,9 @@ import argparse
 
 import requests
 
-from src.MusicDownload.fetch_music_list import fetch_song_urls_via_api
-from src.MusicDownload.download_music import get_download_link, download_file
-from src.PublicMethods.logger import setup_log, get_logger
+from MusicDownload.fetch_music_list import fetch_song_urls_via_api
+from MusicDownload.download_music import get_download_link, download_file
+from PublicMethods.logger import setup_log, get_logger
 setup_log(log_name="Music")
 log = get_logger(__name__)
 

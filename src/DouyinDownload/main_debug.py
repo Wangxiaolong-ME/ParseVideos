@@ -4,14 +4,14 @@
 An entry point for debugging and testing, directly invoking DouyinPost logic without relying on command-line arguments.
 """
 import os
-from src.PublicMethods.logger import get_logger, setup_log
+from PublicMethods.logger import get_logger, setup_log
 import logging
 
 setup_log(logging.DEBUG, 'DouYinDownloader')
 log = get_logger(__name__)
 
-from src.DouyinDownload.douyin_post import DouyinPost
-from src.DouyinDownload.exceptions import DouyinDownloadException
+from DouyinDownload.douyin_post import DouyinPost
+from DouyinDownload.exceptions import DouyinDownloadException
 
 
 def run_downloader_programmatically(

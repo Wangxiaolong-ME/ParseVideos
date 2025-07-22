@@ -4,11 +4,11 @@
 """
 import os
 import subprocess
-from src.BilibiliDownload.parser import BilibiliParser
-from src.PublicMethods.m_download import Downloader
-from src.BilibiliDownload.config import DEFAULT_SAVE_DIR, DEFAULT_MERGE_DIR, DEFAULT_HEADERS
-from src.BilibiliDownload.exceptions import BilibiliParseError, BilibiliDownloadError
-from src.PublicMethods.logger import get_logger, setup_log
+from BilibiliDownload.parser import BilibiliParser
+from PublicMethods.m_download import Downloader
+from BilibiliDownload.config import DEFAULT_SAVE_DIR, DEFAULT_MERGE_DIR, DEFAULT_HEADERS
+from BilibiliDownload.exceptions import BilibiliParseError, BilibiliDownloadError
+from PublicMethods.logger import get_logger, setup_log
 from TelegramBot.config import DEFAULT_DOWNLOAD_THREADS
 
 

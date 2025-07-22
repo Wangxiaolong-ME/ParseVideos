@@ -10,7 +10,7 @@ from typing import Optional, Dict
 
 import requests
 from queue import Queue
-from src.PublicMethods.logger import get_logger, setup_log
+from PublicMethods.logger import get_logger, setup_log
 
 setup_log()
 logger = get_logger(__name__)

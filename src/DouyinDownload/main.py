@@ -5,14 +5,14 @@ Main program entry point, responsible for parsing command-line arguments and inv
 """
 import argparse
 import sys
-from src.PublicMethods.logger import get_logger, setup_log
+from PublicMethods.logger import get_logger, setup_log
 import logging
 
 setup_log(logging.DEBUG, 'DouYinDownloader')
 log = get_logger(__name__)
 
-from src.DouyinDownload.douyin_post import DouyinPost
-from src.DouyinDownload.exceptions import DouyinDownloadException
+from DouyinDownload.douyin_post import DouyinPost
+from DouyinDownload.exceptions import DouyinDownloadException
 
 
 def main():
