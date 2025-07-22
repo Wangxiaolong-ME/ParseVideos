@@ -4,9 +4,7 @@
 """
 import re
 import json
-from turtledemo.chaos import coosys
 from typing import Any
-import execjs
 import requests
 from bs4 import BeautifulSoup
 

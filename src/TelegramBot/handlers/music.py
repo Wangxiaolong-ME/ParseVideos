@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Final
 
 from telegram import Update, Message
-from telegram.constants import ChatAction
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 

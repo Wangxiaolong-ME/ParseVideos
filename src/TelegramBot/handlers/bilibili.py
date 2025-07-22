@@ -4,8 +4,6 @@ from __future__ import annotations
 import asyncio, functools, logging, re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from idlelib.pyshell import restart_line
-from pathlib import Path
 from typing import Final, Any
 
 from telegram import Update, Message
