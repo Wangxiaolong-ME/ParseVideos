@@ -1,12 +1,8 @@
 # src/TelegramBot/uploader.py
 import asyncio
-import shlex
-import subprocess
 import time
 
-import aiohttp
 import httpx, pathlib, logging
-from telegram.constants import ParseMode
 
 from TelegramBot.utils import MsgSender
 
