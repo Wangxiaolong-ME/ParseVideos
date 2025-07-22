@@ -20,6 +20,7 @@ class BilibiliParser:
     def __init__(self, url: str, headers: dict = None, session: requests.Session = None, cookie: dict = None):
         self.url = url
         self._parse_url()
+        log.debug(f"_parse_url: {self.url}")
         self.headers = headers or {}
         self.cookie = cookie or {}
         self.session = session or requests.Session()
@@ -125,6 +126,7 @@ class BilibiliParser:
         resp.raise_for_status()
         html = resp.text
         html = html.replace('\n', '')
+        log.debug(f"fetch_resp:  {html}")
         soup = BeautifulSoup(html, 'html.parser')
         script_tags = soup.find_all('script')
 
@@ -152,19 +154,24 @@ class BilibiliParser:
             # 取标题与 bvid，这里的episode_id就当做bvid
             title = soup.find_all('title')[0]
             self.title = title.text
-            log.debug(f"_bangumi_fetch, title:{title.text}")
-            log.debug(f"_bangumi_fetch, playurl_data:{playurl_data}")
+            log.debug(f"_bangumi_fetch_title: {title.text}")
+            log.debug(f"_bangumi_fetch_playurl_data: {playurl_data}")
             if not playurl_data:
                 log.error(f"_bangumi_fetch, 无法提取视频信息")
                 raise Exception("_bangumi_fetch, 无法提取视频信息")
 
             result = playurl_data.get('data', {}).get('result', {})
+            log.debug(f"_bangumi_fetch_result: {result}")
             self.bvid = result.get('arc').get('bvid')
             play_type = result.get('play_video_type')
             video_info = result.get('video_info')
+            log.debug(f"_bangumi_fetch_play_type: {play_type}")
+            log.debug(f"_bangumi_fetch_video_info: {video_info}")
             # 预览视频，基本是因为当前账户没有会员，视频是给非会员提供的预览片段
             if 'preview' in play_type:
                 dash = video_info.get('durl')[0]
+                if not dash:
+                    raise Exception("未拿到预览视频")
                 _parse(dash, video_info, is_preview=True)
             else:
                 dash = video_info.get('dash')
