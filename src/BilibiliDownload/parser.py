@@ -126,6 +126,7 @@ class BilibiliParser:
         resp = self.session.get(self.url, headers=self.headers, cookies=self.cookie, timeout=10)
         curl = prepared_to_curl(resp.request)
         log.warning(f"curl请求： {curl}")
+        log.warning(f"响应头：{resp.headers}")
         resp.raise_for_status()
         html = resp.text
         html = html.replace('\n', '')

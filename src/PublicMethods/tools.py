@@ -32,4 +32,4 @@ def prepared_to_curl(prep: PreparedRequest) -> str:
     if prep.body:
         cmd += ["--data-binary", sh(prep.body if isinstance(prep.body, str) else prep.body.decode())]
     cmd.append(sh(prep.url))
-    return " \\\n  ".join(cmd)
+    return ' '.join(cmd)
