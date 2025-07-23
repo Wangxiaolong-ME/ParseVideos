@@ -19,16 +19,19 @@ def _get_unique_log_file_path(log_folder=LOG_DIR, log_name=None, one_file=False)
     获取一个基于时间戳的唯一日志文件路径。
     这个函数只负责生成路径，不创建文件处理器。
     """
-    if not log_name:
-        log_name = Log_NAME
+    # 修改后 (新的，确保使用传入的 log_name，如果传入了):
+    _effective_log_name = log_name if log_name is not None else Log_NAME # 新增一行，更清晰地处理优先级
+
     if not os.path.exists(log_folder):
         os.makedirs(log_folder)
-    if one_file:
-        l = os.path.join(log_folder, f"{log_name}.log")
-    else:
-        l = os.path.join(log_folder, f"{log_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
-    return l
 
+    if one_file:
+        # 修改后 (新的):
+        l = os.path.join(log_folder, f"{_effective_log_name}.log") # 关键修改在这里！
+    else:
+        l = os.path.join(log_folder, f"{_effective_log_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log") # 这里也应使用 _effective_log_name
+
+    return l
 
 # 新增的全局日志配置函数，只在程序启动时调用一次
 def setup_log(log_level=logging.INFO, log_name: str = None, one_file=False):
