@@ -6,7 +6,6 @@ Responsible for parsing detailed video information from a Douyin URL.
 import re
 import time
 from typing import Dict, Any, List, Optional, Tuple
-from urllib.parse import urlparse
 
 from playwright.sync_api import sync_playwright, Page, Response, TimeoutError
 
