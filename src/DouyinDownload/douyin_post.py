@@ -17,7 +17,7 @@ from DouyinDownload.exceptions import ParseError
 from DouyinDownload.models import VideoOption
 from DouyinDownload.parser import DouyinParser
 from PublicMethods.logger import get_logger, setup_log
-from TelegramBot.config import DOUYIN_DOWNLOAD_THREADS
+from TelegramBot.config import DOUYIN_DOWNLOAD_THREADS, DOUYIN_SESSION_COUNTS
 
 setup_log()
 log = get_logger(__name__)
@@ -340,7 +340,8 @@ class DouyinPost:
         log.debug(f"  预计大小: {option.size_mb or '未知'} MB")
 
         start = datetime.now()
-        self.downloader.download(option.url, out_path, timeout=timeout, multi_session=True, session_count=2)
+        self.downloader.download(option.url, out_path, timeout=timeout, multi_session=True,
+                                 session_count=DOUYIN_SESSION_COUNTS)
         cost = (datetime.now() - start).total_seconds()
 
         size_mb = os.path.getsize(out_path) / (1024 * 1024)

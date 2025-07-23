@@ -59,22 +59,22 @@ class DouyinParser:
         start = time.time()
         log.debug(f"_intercept_detail_api 核心拦截逻辑 page.on.response 1")
         page.on("response", handle_response)
-        log.debug(f"_intercept_detail_api 核心拦截逻辑 page.on.response 2 {round(time.time() - start, 2)}")
+        log.debug(f"_intercept_detail_api 核心拦截逻辑 page.on.response 2 {(time.time() - start):.2f}")
 
         try:
             start = time.time()
             log.debug(f"_intercept_detail_api 核心拦截逻辑 page.goto domcontentloaded 1")
             page.goto(short_url, wait_until="domcontentloaded", timeout=PLAYWRIGHT_TIMEOUT)
-            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.goto domcontentloaded 2 {round(time.time() - start, 2)}")
+            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.goto domcontentloaded 2 {(time.time() - start):.2f}")
             # 等待目标API响应，确保数据被捕获
             start = time.time()
             log.debug(f"_intercept_detail_api 核心拦截逻辑 page.wait_for_event 1")
             page.wait_for_event(
                 "response",
-                timeout=PLAYWRIGHT_TIMEOUT,
+                timeout=PLAYWRIGHT_TIMEOUT / 2,
                 predicate=lambda r: AWEME_DETAIL_API_URL in r.url and r.status == 200
             )
-            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.wait_for_event 2 {round(time.time() - start, 2)}")
+            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.wait_for_event 2 {(time.time() - start):.2f}")
         except TimeoutError:
             # 如果上面的wait_for_function不可靠，可以回退到等待response事件
             try:
@@ -160,7 +160,7 @@ class DouyinParser:
             A tuple containing: (video_title, list_of_video_options)
         """
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=True,args=['--disable-images'])
             page = browser.new_page()
             try:
                 detail_json = self._intercept_detail_api(page, short_url)
