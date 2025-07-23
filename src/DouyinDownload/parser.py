@@ -4,6 +4,7 @@
 Responsible for parsing detailed video information from a Douyin URL.
 """
 import re
+import time
 from typing import Dict, Any, List, Optional, Tuple
 from urllib.parse import urlparse
 
@@ -41,6 +42,7 @@ class DouyinParser:
         Core interception logic: visits the page and captures the JSON response containing video details.
         """
         detail_response_json: Optional[Dict[str, Any]] = None
+        g_start = time.time()
 
         def handle_response(response: Response):
             nonlocal detail_response_json
@@ -54,22 +56,25 @@ class DouyinParser:
         # 拦截并阻止图片、CSS等无关资源加载，加快速度
         # Intercept and block irrelevant resources like images and CSS to speed up the process
         page.route("**/*.{png,jpg,jpeg,svg,css,woff,woff2,ttf}", lambda route: route.abort())
+        start = time.time()
         log.debug(f"_intercept_detail_api 核心拦截逻辑 page.on.response 1")
         page.on("response", handle_response)
-        log.debug(f"_intercept_detail_api 核心拦截逻辑 page.on.response 2")
+        log.debug(f"_intercept_detail_api 核心拦截逻辑 page.on.response 2 {round(time.time() - start, 2)}")
 
         try:
+            start = time.time()
             log.debug(f"_intercept_detail_api 核心拦截逻辑 page.goto domcontentloaded 1")
             page.goto(short_url, wait_until="domcontentloaded", timeout=PLAYWRIGHT_TIMEOUT)
-            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.goto domcontentloaded 2")
+            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.goto domcontentloaded 2 {round(time.time() - start, 2)}")
             # 等待目标API响应，确保数据被捕获
+            start = time.time()
             log.debug(f"_intercept_detail_api 核心拦截逻辑 page.wait_for_event 1")
             page.wait_for_event(
                 "response",
                 timeout=PLAYWRIGHT_TIMEOUT,
                 predicate=lambda r: AWEME_DETAIL_API_URL in r.url and r.status == 200
             )
-            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.wait_for_event 2")
+            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.wait_for_event 2 {round(time.time() - start, 2)}")
         except TimeoutError:
             # 如果上面的wait_for_function不可靠，可以回退到等待response事件
             try:
@@ -85,6 +90,7 @@ class DouyinParser:
             try:
                 log.debug("移除响应事件监听器")
                 page.remove_listener("response", handle_response)
+                log.debug(f"_intercept_detail_api 核心拦截逻辑 总耗时 {round(time.time() - g_start, 2)}")
             except KeyError as e:
                 log.error(f"移除监听器时发生错误: {e}")
 
