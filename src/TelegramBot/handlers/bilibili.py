@@ -204,6 +204,10 @@ async def bili_command(
     sender = MsgSender(update)
 
     record.uid = uid
+    uname = update.effective_user.username or "(无用户名)"
+    name = update.effective_user.full_name  # 显示名
+    record.uname = uname
+    record.full_name = name
 
     # 清本地缓存并汇报
     deleted = purge_old_files(BILI_SAVE_DIR, keep_hours=2)

@@ -122,6 +122,11 @@ async def music_command(
     uid = update.effective_user.id
     sender = MsgSender(update)
     record.uid = uid
+    uname = update.effective_user.username or "(无用户名)"
+    name = update.effective_user.full_name  # 显示名
+    record.uname = uname
+    record.full_name = name
+
     # ---- 速率限制 & 同用户单任务 ----
     if not rate_limiter.allow(uid):
         return await sender.send("操作过于频繁，请稍后再试")

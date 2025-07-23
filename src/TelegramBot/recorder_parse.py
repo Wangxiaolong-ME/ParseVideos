@@ -10,6 +10,8 @@ STATS_FILE = Path(__file__).with_name("user_stats.json")
 @dataclass
 class UserParseResult:
     uid: int
+    uname: str = None
+    full_name: str = None
     platform: str or None = None
     url: str or None = None
     vid: str or None = None
