@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio, functools, logging
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,6 +31,7 @@ rate_limiter: RateLimiter
 task_manager: TaskManager
 executor: Final = ThreadPoolExecutor(max_workers=MAX_THREAD_WORKERS)
 record = UserParseResult(1)
+record.start_time = time.perf_counter()
 record.platform = "douyin"
 # ── helpers ──────────────────────────────────────────────
 def _safe_filename(name: str) -> str:

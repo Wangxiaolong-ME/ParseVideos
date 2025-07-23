@@ -7,6 +7,7 @@ from __future__ import annotations
 import asyncio
 import functools
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Final
@@ -33,6 +34,7 @@ rate_limiter: RateLimiter
 task_manager: TaskManager
 executor: Final = ThreadPoolExecutor(max_workers=MAX_THREAD_WORKERS)
 record = UserParseResult(0)
+record.start_time = time.perf_counter()
 record.platform = "music.163"
 
 

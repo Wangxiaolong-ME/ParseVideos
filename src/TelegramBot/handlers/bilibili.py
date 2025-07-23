@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio, functools, logging, re
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Final, Any
@@ -31,6 +32,7 @@ task_manager: TaskManager
 executor: Final = ThreadPoolExecutor(max_workers=MAX_THREAD_WORKERS)
 
 record = UserParseResult(2)
+record.start_time = time.perf_counter()
 record.platform = "bilibili"
 # ─ helpers ────────────────────────────────────────────
 INVALID = r'\/:*?"<>|'
