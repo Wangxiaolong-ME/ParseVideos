@@ -6,7 +6,7 @@ from TelegramBot.task_manager import TaskManager
 from TelegramBot.handlers import bilibili, douyin, music, general, status  # noqa: F401  (触发模块导入)
 from PublicMethods.logger import setup_log, get_logger
 
-setup_log(logging.DEBUG, "Telegram")
+setup_log(logging.DEBUG, "TelegramService")
 logger = get_logger(__name__)
 
 

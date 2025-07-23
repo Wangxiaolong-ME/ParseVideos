@@ -14,14 +14,17 @@ logging.getLogger('httpcore').setLevel(logging.INFO)
 logging.getLogger('telegram.ext').setLevel(logging.INFO)
 logging.getLogger('httpx').setLevel(logging.WARN)
 
-def _get_unique_log_file_path(log_folder=LOG_DIR, log_name=Log_NAME):
+def _get_unique_log_file_path(log_folder=LOG_DIR, log_name=Log_NAME, one_file=False):
     """
     获取一个基于时间戳的唯一日志文件路径。
     这个函数只负责生成路径，不创建文件处理器。
     """
     if not os.path.exists(log_folder):
         os.makedirs(log_folder)
-    l = os.path.join(log_folder, f"{log_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    if one_file:
+        l = os.path.join(log_folder, f"{log_name}.log")
+    else:
+        l = os.path.join(log_folder, f"{log_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
     return l
 
 
