@@ -76,7 +76,7 @@ class DouyinParser:
             try:
                 page.wait_for_event(
                     "response",
-                    timeout=PLAYWRIGHT_TIMEOUT / 2,  # 给一个短点的超时
+                    timeout=PLAYWRIGHT_TIMEOUT ,  # 给一个短点的超时
                     predicate=lambda r: AWEME_DETAIL_API_URL in r.url and r.status == 200
                 )
             except TimeoutError:
