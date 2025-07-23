@@ -14,11 +14,13 @@ logging.getLogger('httpcore').setLevel(logging.INFO)
 logging.getLogger('telegram.ext').setLevel(logging.INFO)
 logging.getLogger('httpx').setLevel(logging.WARN)
 
-def _get_unique_log_file_path(log_folder=LOG_DIR, log_name=Log_NAME, one_file=False):
+def _get_unique_log_file_path(log_folder=LOG_DIR, log_name=None, one_file=False):
     """
     获取一个基于时间戳的唯一日志文件路径。
     这个函数只负责生成路径，不创建文件处理器。
     """
+    if not log_name:
+        log_name = Log_NAME
     if not os.path.exists(log_folder):
         os.makedirs(log_folder)
     if one_file:
@@ -60,7 +62,7 @@ def setup_log(log_level=logging.INFO, log_name: str = None, one_file=False):
         # 2. 配置文件输出
         # 只在第一次 setup 时生成唯一的日志文件路径
         if _GLOBAL_LOG_FILE_PATH is None:
-            _GLOBAL_LOG_FILE_PATH = _get_unique_log_file_path(log_name=log_name or Log_NAME, one_file=one_file)
+            _GLOBAL_LOG_FILE_PATH = _get_unique_log_file_path(log_name=log_name, one_file=one_file)
 
         file_handler = logging.FileHandler(filename=_GLOBAL_LOG_FILE_PATH, encoding="utf-8", mode='a')
         # 格式化器中添加 %(name)s 来显示是哪个模块发出的日志
