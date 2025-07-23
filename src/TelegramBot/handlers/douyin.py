@@ -73,7 +73,7 @@ def _download_or_hit(url: str):
     dy.path = local_path
     dy.height = option.height
     dy.width = option.width
-    dy.duration = option.duration
+    dy.duration = option.duration / 1000    # 毫秒转秒
     dy.download_url = option.url
     dy.size = option.size_mb
 
