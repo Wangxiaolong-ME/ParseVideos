@@ -44,13 +44,13 @@ class UserRecordEntry:
     url: str or None = None  # 原始请求URL
     vid: str or None = None  # 视频ID
     title: str or None = None  # 视频标题
+    work_time_s: float = None
     is_cached_hit: bool = False  # 核心字段：是否命中缓存
     cache_info: dict = field(default_factory=dict)  # 缓存相关信息，例如fid
     parse_success: bool = False  # 解析是否成功
     parse_exception: str = None  # 解析失败的异常信息
     size: float or int = None  # 视频大小 (仅新解析成功时有)
     parsed_url: str = None  # 解析后的URL (仅新解析成功时有)
-    work_time_s: float = None
 
 
 
@@ -100,7 +100,6 @@ def _record_user_parse(info: UserParseResult):
         url=info.url,  # 原始请求URL，对于缓存命中和新解析都存在
         vid=info.vid,
         title=info.title,
-        work_time_s=work_time_s,
         is_cached_hit=is_cached_hit,
         cache_info=info.fid if is_cached_hit else {},  # 仅缓存命中时记录fid
         parse_success=info.success,
@@ -108,6 +107,7 @@ def _record_user_parse(info: UserParseResult):
         # 只有新解析成功时才记录大小和解析URL
         size=info.size if not is_cached_hit and info.success else None,
         parsed_url=info.parsed_url if not is_cached_hit and info.success else None,
+        work_time_s=work_time_s,
     )
 
     # 对于新视频（非缓存命中），可以考虑去重逻辑
