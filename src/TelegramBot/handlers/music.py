@@ -34,7 +34,6 @@ rate_limiter: RateLimiter
 task_manager: TaskManager
 executor: Final = ThreadPoolExecutor(max_workers=MAX_THREAD_WORKERS)
 record = UserParseResult(0)
-record.start_time = time.perf_counter()
 record.platform = "music.163"
 
 
@@ -120,6 +119,7 @@ async def music_command(
 ) -> Message | None:
     """/music 与纯文本两种触发方式共用一个入口。"""
     logger.info("music_command start >>>")
+    record.start_time = time.perf_counter()
 
     uid = update.effective_user.id
     sender = MsgSender(update)

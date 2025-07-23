@@ -32,7 +32,7 @@ task_manager: TaskManager
 executor: Final = ThreadPoolExecutor(max_workers=MAX_THREAD_WORKERS)
 
 record = UserParseResult(2)
-record.start_time = time.perf_counter()
+
 record.platform = "bilibili"
 # ─ helpers ────────────────────────────────────────────
 INVALID = r'\/:*?"<>|'
@@ -201,7 +201,7 @@ async def bili_command(
         is_command: bool = True,
 ) -> Message | None:
     logger.info("bili_command start >>>")
-
+    record.start_time = time.perf_counter()
     uid = update.effective_user.id
     sender = MsgSender(update)
 
