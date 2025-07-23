@@ -12,7 +12,7 @@ from typing import Optional, Dict
 import requests
 from queue import Queue
 import  logging
-log = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 class DownloadError(Exception):
