@@ -5,8 +5,9 @@ from telegram.ext import ContextTypes
 from TelegramBot.config import ADMIN_ID
 from TelegramBot.task_manager import TaskManager
 from TelegramBot.monitor import get_queue_length
-from . import bilibili, douyin, music       # 导入各下载模块，拿到它们的 executor
-
+from TelegramBot.handlers import bilibili, douyin, music       # 导入各下载模块，拿到它们的 executor
+import  logging
+log = logging.getLogger(__name__)
 # 打包所有线程池，后续有新模块可随时 append
 _EXECUTORS = (bilibili.executor, douyin.executor, music.executor)
 task_manager: TaskManager                    # 在 bot.py 里注入同一个实例
@@ -31,4 +32,5 @@ async def handle_status_command(update: Update, context: ContextTypes.DEFAULT_TY
         f"排队任务数：`{queue_len}`\n"
         f"执行中任务：`{running}`"
     )
+    log.debug(f"输出服务器状态")
     await update.message.reply_markdown_v2(msg, reply_to_message_id=update.message.message_id)

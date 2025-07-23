@@ -16,11 +16,9 @@ from PublicMethods.m_download import Downloader
 from DouyinDownload.exceptions import ParseError
 from DouyinDownload.models import VideoOption
 from DouyinDownload.parser import DouyinParser
-from PublicMethods.logger import get_logger, setup_log
 from TelegramBot.config import DOUYIN_DOWNLOAD_THREADS, DOUYIN_SESSION_COUNTS
-
-setup_log()
-log = get_logger(__name__)
+import  logging
+log = logging.getLogger(__name__)
 
 
 class DouyinPost:

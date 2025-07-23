@@ -11,10 +11,8 @@ from typing import Optional, Dict
 
 import requests
 from queue import Queue
-from PublicMethods.logger import get_logger, setup_log
-
-setup_log()
-logger = get_logger(__name__)
+import  logging
+log = logging.getLogger(__name__)
 
 
 class DownloadError(Exception):

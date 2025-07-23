@@ -8,6 +8,8 @@ LOG_DIR = 'Logs'
 Log_NAME = 'logger'
 # 全局变量，用于存储本次运行的唯一日志文件路径，确保所有文件处理器指向同一个文件
 _GLOBAL_LOG_FILE_PATH = None
+
+
 # 不输出该方法内部的日志输出
 logging.getLogger('urllib3.connectionpool').setLevel(logging.INFO)
 logging.getLogger('httpcore').setLevel(logging.INFO)

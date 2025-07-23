@@ -9,12 +9,10 @@ import requests
 from bs4 import BeautifulSoup
 
 from BilibiliDownload.exceptions import BilibiliParseError
-from PublicMethods.logger import get_logger, setup_log
 from PublicMethods.m_download import Downloader
 from PublicMethods.tools import prepared_to_curl
-
-setup_log()
-log = get_logger(__name__)
+import  logging
+log = logging.getLogger(__name__)
 
 
 class BilibiliParser:

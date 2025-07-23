@@ -11,9 +11,8 @@ import requests
 
 from MusicDownload.fetch_music_list import fetch_song_urls_via_api
 from MusicDownload.download_music import get_download_link, download_file
-from PublicMethods.logger import setup_log, get_logger
-setup_log(log_name="Music")
-log = get_logger(__name__)
+import  logging
+log = logging.getLogger(__name__)
 
 def extract_id(input_str, *, item_type):
     """

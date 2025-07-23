@@ -12,11 +12,8 @@ from playwright.sync_api import sync_playwright, Page, Response, TimeoutError
 from DouyinDownload.config import AWEME_DETAIL_API_URL, PLAYWRIGHT_TIMEOUT
 from DouyinDownload.exceptions import URLExtractionError, ParseError
 from DouyinDownload.models import VideoOption
-from PublicMethods.logger import get_logger, setup_log
-
-setup_log()
-log = get_logger(__name__)
-
+import  logging
+log = logging.getLogger(__name__)
 
 class DouyinParser:
     """

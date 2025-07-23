@@ -8,12 +8,9 @@ from BilibiliDownload.parser import BilibiliParser
 from PublicMethods.m_download import Downloader
 from BilibiliDownload.config import DEFAULT_SAVE_DIR, DEFAULT_MERGE_DIR, DEFAULT_HEADERS
 from BilibiliDownload.exceptions import BilibiliParseError, BilibiliDownloadError
-from PublicMethods.logger import get_logger, setup_log
 from TelegramBot.config import DEFAULT_DOWNLOAD_THREADS
-
-
-setup_log()
-log = get_logger(__name__)
+import  logging
+log = logging.getLogger(__name__)
 
 
 class BilibiliPost:

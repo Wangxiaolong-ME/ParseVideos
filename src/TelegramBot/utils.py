@@ -1,16 +1,15 @@
 # src/TelegramBot/utils.py
-import asyncio
-import contextlib
 import time
 from pathlib import Path
 from typing import Union, IO
 from telegram import InputFile, Message, Update, ReactionTypeEmoji, ReactionTypeCustomEmoji, InputMediaVideo
 from telegram.constants import ChatAction
 
-from PublicMethods.logger import get_logger, setup_log
+import logging
 
-setup_log(log_name="Utils")
-log = get_logger(__name__)
+log = logging.getLogger(__name__)
+
+
 def format_duration(seconds: int | float) -> str:
     """
     把时长（秒）转换为“X分Y秒”或“Y秒”。
@@ -23,11 +22,12 @@ def format_duration(seconds: int | float) -> str:
     """
     if not seconds:
         return 'None'
-    seconds = int(round(seconds))        # 四舍五入并转成整数
+    seconds = int(round(seconds))  # 四舍五入并转成整数
     if seconds < 60:
         return f"{seconds}秒"
     minutes, sec = divmod(seconds, 60)
     return f"{minutes}分{sec}秒" if sec else f"{minutes}分"
+
 
 class MsgSender:
     def __init__(self, update: Update):
@@ -151,7 +151,7 @@ class MsgSender:
     async def send_video(
             self,
             video: Union[str, Path, IO, InputFile],
-            progress_msg: Message|None = None,
+            progress_msg: Message | None = None,
             *,
             caption: str | None = None,
             duration: int | None = None,
