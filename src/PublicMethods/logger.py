@@ -29,7 +29,7 @@ def _get_unique_log_file_path(log_folder=LOG_DIR, log_name=Log_NAME, one_file=Fa
 
 
 # 新增的全局日志配置函数，只在程序启动时调用一次
-def setup_log(log_level=logging.INFO, log_name: str = None):
+def setup_log(log_level=logging.INFO, log_name: str = None, one_file=False):
     """
     统一设置项目的全局日志配置。该函数应在应用程序启动时只被调用一次。
     它配置了根Logger的Handlers，所有其他Logger实例都会继承其传播行为。
@@ -60,7 +60,7 @@ def setup_log(log_level=logging.INFO, log_name: str = None):
         # 2. 配置文件输出
         # 只在第一次 setup 时生成唯一的日志文件路径
         if _GLOBAL_LOG_FILE_PATH is None:
-            _GLOBAL_LOG_FILE_PATH = _get_unique_log_file_path(log_name=log_name or Log_NAME)
+            _GLOBAL_LOG_FILE_PATH = _get_unique_log_file_path(log_name=log_name or Log_NAME, one_file=one_file)
 
         file_handler = logging.FileHandler(filename=_GLOBAL_LOG_FILE_PATH, encoding="utf-8", mode='a')
         # 格式化器中添加 %(name)s 来显示是哪个模块发出的日志
