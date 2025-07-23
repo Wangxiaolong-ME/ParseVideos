@@ -47,6 +47,8 @@ def _record_user_parse(info: UserParseResult):
             data[user_key]["records"].append({
                 "time": datetime.now().isoformat(),
                 "to_fid": info.to_fid,
+                "uname":info.uname,
+                "full_name": info.full_name,
                 "platform": info.platform,
                 "vid": info.vid,
                 "title": info.title,
