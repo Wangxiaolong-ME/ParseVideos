@@ -10,23 +10,56 @@ import logging
 log = logging.getLogger(__name__)
 
 
-def format_duration(seconds: int | float) -> str:
+def format_duration(duration_value: int | float) -> str:
     """
-    把时长（秒）转换为“X分Y秒”或“Y秒”。
+    把时长转换为“X分Y秒”或“Y秒”。
+    函数会尝试判断传入值是秒还是毫秒，并进行转换。
 
     Args:
-        seconds (int | float): 时长，单位秒。
+        duration_value (int | float): 时长，单位可能是秒或毫秒。
 
     Returns:
         str: 格式化后的字符串。
     """
-    if not seconds:
-        return 'None'
-    seconds = int(round(seconds))  # 四舍五入并转成整数
-    if seconds < 60:
-        return f"{seconds}秒"
+    if duration_value is None or duration_value == 0:
+        return '0秒'  # 0秒比None更准确
+
+    # 尝试判断是否是毫秒：如果数值非常大（例如超过1小时的毫秒数），
+    # 且没有小数部分（或小数部分很小），则很可能是毫秒。
+    # 这是一个启发式判断，可能不完美，但能覆盖大部分情况。
+    # 1小时 = 3600秒 = 3,600,000毫秒
+    # 设定一个阈值，例如超过 2 小时的毫秒数，就认为是毫秒
+    # 更安全的判断是检查是否是整数且非常大。
+
+    # 优先假设是秒，然后判断极端情况
+    seconds = duration_value
+
+    # 假设如果传入的数值是一个非常大的整数（例如，大于1000000），则很可能是毫秒
+    # 并且如果转换成秒后，它的小数部分接近于0（即原始值是1000的倍数）
+    if isinstance(duration_value, int) and duration_value > 60000 and (duration_value % 1000 == 0):
+        # 尝试转换为秒
+        seconds = duration_value / 1000.0
+    elif isinstance(duration_value, float) and duration_value > 60000:  # 如果是浮点数且数值很大，也可能是毫秒
+        # 检查小数点后3位是否全是0，即是千的倍数
+        if abs(duration_value * 1000 - round(duration_value * 1000)) < 0.001:
+            seconds = duration_value / 1000.0
+
+    # 对秒数进行四舍五入并转成整数
+    seconds = int(round(seconds))
+
+    if seconds <= 0:  # 如果转换后小于等于0，统一返回0秒
+        return '0秒'
+
+    # 核心逻辑：转换为分秒
     minutes, sec = divmod(seconds, 60)
-    return f"{minutes}分{sec}秒" if sec else f"{minutes}分"
+
+    if minutes > 0:
+        if sec > 0:
+            return f"{minutes}分{sec}秒"
+        else:  # 恰好是分钟的整数倍
+            return f"{minutes}分"
+    else:  # 小于1分钟
+        return f"{seconds}秒"
 
 
 class MsgSender:
