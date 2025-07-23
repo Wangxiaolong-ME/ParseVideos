@@ -1,13 +1,13 @@
-import logging, sys, asyncio
+import logging, sys
+from PublicMethods.logger import setup_log, get_logger
+
+setup_log(logging.DEBUG, "TelegramService", one_file=True)
+logger = get_logger(__name__)
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 from TelegramBot.config import TELEGRAM_TOKEN_ENV, ADMIN_ID, MIN_MSG_INTERVAL
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.task_manager import TaskManager
 from TelegramBot.handlers import bilibili, douyin, music, general, status  # noqa: F401  (触发模块导入)
-from PublicMethods.logger import setup_log, get_logger
-
-setup_log(logging.DEBUG, "TelegramService", one_file=True)
-logger = get_logger(__name__)
 
 
 def _inject_singletons(app):
