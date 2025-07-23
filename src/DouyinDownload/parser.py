@@ -54,16 +54,22 @@ class DouyinParser:
         # 拦截并阻止图片、CSS等无关资源加载，加快速度
         # Intercept and block irrelevant resources like images and CSS to speed up the process
         page.route("**/*.{png,jpg,jpeg,svg,css,woff,woff2,ttf}", lambda route: route.abort())
+        log.debug(f"_intercept_detail_api 核心拦截逻辑 page.on.response 1")
         page.on("response", handle_response)
+        log.debug(f"_intercept_detail_api 核心拦截逻辑 page.on.response 2")
 
         try:
+            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.goto domcontentloaded 1")
             page.goto(short_url, wait_until="domcontentloaded", timeout=PLAYWRIGHT_TIMEOUT)
+            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.goto domcontentloaded 2")
             # 等待目标API响应，确保数据被捕获
+            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.wait_for_event 1")
             page.wait_for_event(
                 "response",
                 timeout=PLAYWRIGHT_TIMEOUT,
                 predicate=lambda r: AWEME_DETAIL_API_URL in r.url and r.status == 200
             )
+            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.wait_for_event 2")
         except TimeoutError:
             # 如果上面的wait_for_function不可靠，可以回退到等待response事件
             try:
@@ -95,7 +101,8 @@ class DouyinParser:
 
         aweme_id = aweme_detail.get("aweme_id")
         bit_rate_list = aweme_detail.get("video", {}).get("bit_rate", [])
-        log.debug(f"DouYin_aweme_detail 原始数据: {aweme_detail}")
+        log.debug(f"DouYin_aweme_detail 视频流: {bit_rate_list}")
+        # log.debug(f"DouYin_aweme_detail 原始数据: {aweme_detail}")
         duration = aweme_detail.get("duration")
 
         # 过滤掉DASH格式，它需要特定的播放器，不适合直接下载合并
