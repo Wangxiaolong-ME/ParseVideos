@@ -21,6 +21,7 @@ from TelegramBot.uploader import upload
 from TelegramBot.utils import MsgSender
 from TelegramBot.file_cache import get as cache_get, put as cache_put
 from PublicMethods.tools import check_file_size
+from TelegramBot.recorder_parse import UserParseResult, _record_user_parse
 
 __all__ = ["bili_command"]
 
@@ -29,6 +30,8 @@ rate_limiter: RateLimiter
 task_manager: TaskManager
 executor: Final = ThreadPoolExecutor(max_workers=MAX_THREAD_WORKERS)
 
+record = UserParseResult(2)
+record.platform = "bilibili"
 # ─ helpers ────────────────────────────────────────────
 INVALID = r'\/:*?"<>|'
 
@@ -68,6 +71,7 @@ def _download_or_hit(url: str):
     title = _safe_filename(post.title or video_id)
     # 预览视频
     if post.preview_video:
+        result.url = post.preview_video
         pre_name = post.preview_video_download()
         vpath = BILI_SAVE_DIR / f"{pre_name}.mp4"
         result.title = title
@@ -89,6 +93,7 @@ def _download_or_hit(url: str):
     result.width = post.width
     result.height = post.height
     result.duration = post.duration
+    record.url = post.raw_url
 
     logger.debug(f"初始化size: {post.size_mb}MB")
 
@@ -155,6 +160,8 @@ def _extract_file_id(msg: Message) -> str | None:
 async def _send_with_cache(sender: MsgSender, bili: Bili, progress_msg: Message) -> Message:
     if fid := cache_get(bili.vid):
         try:
+            record.fid[bili.vid] = fid
+            record.to_fid = True
             if isinstance(fid, str) and 'http' in fid:
                 display = f"*标题：{bili.title}*"
                 title_or_md = f"[{escape_markdown(display, version=2)}]({escape_markdown(fid, version=2)})"
@@ -196,6 +203,8 @@ async def bili_command(
     uid = update.effective_user.id
     sender = MsgSender(update)
 
+    record.uid = uid
+
     # 清本地缓存并汇报
     deleted = purge_old_files(BILI_SAVE_DIR, keep_hours=2)
 
@@ -226,6 +235,11 @@ async def bili_command(
         )
         # await progress_msg.delete()  # 视频下载消息删除
 
+        record.parsed_url = bili.url
+        record.vid = bili.vid
+        record.size = bili.size
+        record.title = bili.title
+
         # 预览视频，直接发送
         if not bili.gear_name:
             return await _send_with_cache(sender, bili, progress_msg=progress_msg)
@@ -234,21 +248,28 @@ async def bili_command(
         # >50 MB：返回 Markdown 链接
         if bili.size > 50:
             url = await upload(bili.path, sender)  # ← 调 uploader.upload
+            record.parsed_url = url
             # 上传成功后，存入缓存
             cache_put(bili.vid, url)  # 这里将 bili.vid 作为 key，url 作为 value 存入缓存
             bili.md_title += f"({escape_markdown(url, version=2)})"
-            return await progress_msg.edit_text(
+            msg = await progress_msg.edit_text(
                 f"✅ 上传完成！\n 由于视频超过 50 MB，请点击下方链接下载：\n{bili.md_title}",
                 reply=True,
                 parse_mode=ParseMode.MARKDOWN_V2,
                 preview=False,
             )
+            record.success = True
+            return msg
 
-        return await _send_with_cache(sender, bili, progress_msg)
+        msg = await _send_with_cache(sender, bili, progress_msg)
+        record.success = True
+        return msg
 
     except Exception as e:
         logger.exception("bili_command 失败：%s", e)
+        record.exception = e
         await progress_msg.edit_text(EXCEPTION_MSG)
     finally:
         task_manager.release(uid)
         logger.info("bili_command finished.")
+        _record_user_parse(record)

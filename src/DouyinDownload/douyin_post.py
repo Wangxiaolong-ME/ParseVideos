@@ -340,7 +340,7 @@ class DouyinPost:
         log.debug(f"  预计大小: {option.size_mb or '未知'} MB")
 
         start = datetime.now()
-        self.downloader.download(option.url, out_path, timeout=timeout, multi_session=True)
+        self.downloader.download(option.url, out_path, timeout=timeout)
         cost = (datetime.now() - start).total_seconds()
 
         size_mb = os.path.getsize(out_path) / (1024 * 1024)

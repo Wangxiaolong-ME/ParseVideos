@@ -7,7 +7,6 @@ import json
 from typing import Any
 import requests
 from bs4 import BeautifulSoup
-from pydantic.v1.mypy import plugin
 
 from BilibiliDownload.exceptions import BilibiliParseError
 from PublicMethods.logger import get_logger, setup_log
@@ -50,7 +49,6 @@ class BilibiliParser:
             final_url = Downloader()._get_final_url(short_url, max_redirects=1, return_flag="bilibili.com/video")
             self.url = final_url
             self._parse_url()
-            return
         # 番剧链接
         elif re.search(r'bangumi\/play', self.url):
             ep_id = re.search(r'(?<=\/)ep\w+', self.url)
@@ -132,7 +130,7 @@ class BilibiliParser:
         html = resp.text
         html = html.replace('\n', '')
         log.warning(f"响应长度:{len(html)}")
-        log.debug(f"fetch_resp:  {html}")
+        # log.debug(f"fetch_resp:  {html}")
         soup = BeautifulSoup(html, 'html.parser')
         script_tags = soup.find_all('script')
 

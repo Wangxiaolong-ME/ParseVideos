@@ -20,6 +20,7 @@ from TelegramBot.task_manager import TaskManager
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.utils import MsgSender
 from TelegramBot.file_cache import get as cache_get, put as cache_put
+from TelegramBot.recorder_parse import UserParseResult, _record_user_parse
 
 __all__ = ["douyin_command"]
 
@@ -28,8 +29,8 @@ logger = logging.getLogger(__name__)
 rate_limiter: RateLimiter
 task_manager: TaskManager
 executor: Final = ThreadPoolExecutor(max_workers=MAX_THREAD_WORKERS)
-
-
+record = UserParseResult(1)
+record.platform = "douyin"
 # ── helpers ──────────────────────────────────────────────
 def _safe_filename(name: str) -> str:
     return "".join(c for c in name if c not in r'\/:*?"<>|').strip()
@@ -41,6 +42,7 @@ class DY:
     fid: str = None
     vid: str = None
     url: str = None
+    download_url :str or None = None
     title: str = None
     md_title: str = None
     gear_name: str = None
@@ -71,11 +73,13 @@ def _download_or_hit(url: str):
     dy.height = option.height
     dy.width = option.width
     dy.duration = option.duration
+    dy.download_url = option.url
 
     # 若所有清晰度都 > 50 MB，则取体积最小的
     smallest = min(post.processed_video_options, key=lambda o: o.size_mb)
     if smallest.size_mb > 50:
         download_link = post.processed_video_options[0].url
+        dy.download_url = download_link
         display = f"{dy.title}"
         md_link = (
             f"[{escape_markdown(display, version=2)}]"
@@ -113,6 +117,8 @@ async def _send_with_cache(sender: MsgSender, dy: DY, progress_msg: Message) -> 
     key = dy.vid
     if fid := cache_get(key):
         try:
+            record.fid[key] = fid
+            record.to_fid = True
             logger.debug("用 file_id 秒回 (%s)", key)
             return await sender.send_video(fid, caption=dy.title, progress_msg=progress_msg)
         except BadRequest as e:
@@ -128,6 +134,7 @@ async def _send_with_cache(sender: MsgSender, dy: DY, progress_msg: Message) -> 
                                   duration=dy.duration,
                                   progress_msg=progress_msg,
                                   )
+    record.success = True
     if fid := _extract_file_id(msg):
         cache_put(key, fid)
     return msg
@@ -144,6 +151,7 @@ async def douyin_command(
 
     uid = update.effective_user.id
     sender = MsgSender(update)
+    record.uid = uid
 
     # ① 先清理本地缓存
     clear = purge_old_files(DOUYIN_SAVE_DIR, keep_hours=2)
@@ -171,20 +179,32 @@ async def douyin_command(
         )
         # await progress_msg.delete()  # 视频下载消息删除
 
+        record.url = dy.url
+        record.parsed_url = dy.download_url
+        record.vid = dy.vid
+        record.title = dy.title
+        record.size = dy.size
+
         # 文件过大：local_path 为 None，直接发 Markdown
         if dy.path is None:
-            return await sender.send(
+            msg = await sender.send(
                 f" 视频超过 50 MB，点击下方链接下载：\n{dy.md_title}",
                 reply=False,
                 parse_mode=ParseMode.MARKDOWN_V2,
                 preview=False,
             )
+            record.success = True
+            return msg
 
-        return await _send_with_cache(sender, dy, progress_msg)
+        msg = await _send_with_cache(sender, dy, progress_msg)
+        record.success = True
+        return msg
 
     except Exception as e:
         logger.exception("douyin_command 失败：%s", e)
+        record.exception = e
         await progress_msg.edit_text(EXCEPTION_MSG)
     finally:
         task_manager.release(uid)
         logger.info("douyin_command finished.")
+        _record_user_parse(record)

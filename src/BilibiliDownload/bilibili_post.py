@@ -27,6 +27,7 @@ class BilibiliPost:
         self.bvid = None
         self.title = None
         self.url = url
+        self.raw_url = None
         self.height = None
         self.width = None
         self.save_dir = save_dir or DEFAULT_SAVE_DIR
@@ -47,6 +48,7 @@ class BilibiliPost:
         self.logger.info(f"Fetching info from {self.url}")
         try:
             self.parser.fetch()
+            self.raw_url = self.parser.url
             self.title = self.parser.title
             self.bvid = self.parser.bvid
             log.debug(f"标题:{self.title}")

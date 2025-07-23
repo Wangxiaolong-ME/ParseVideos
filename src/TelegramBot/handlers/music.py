@@ -23,6 +23,7 @@ from TelegramBot.task_manager import TaskManager
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.utils import MsgSender
 from TelegramBot.file_cache import get as cache_get, put as cache_put
+from TelegramBot.recorder_parse import UserParseResult, _record_user_parse
 
 __all__ = ["music_command"]
 
@@ -31,6 +32,8 @@ logger = logging.getLogger(__name__)
 rate_limiter: RateLimiter
 task_manager: TaskManager
 executor: Final = ThreadPoolExecutor(max_workers=MAX_THREAD_WORKERS)
+record = UserParseResult(0)
+record.platform = "music.163"
 
 
 # ════════════════════════════════════════════════
@@ -56,7 +59,9 @@ def _download_or_hit(target: str) -> Path:
         return local_path
 
     logger.info("开始下载 -> %s", target)
-    download_single(target, output_dir=str(MUSIC_SAVE_DIR))
+    url, download_url = download_single(target, output_dir=str(MUSIC_SAVE_DIR))
+    record.url = url
+    record.parsed_url = download_url
     logger.info("下载完成 -> %s", local_path.name)
     return local_path
 
@@ -71,9 +76,9 @@ def _extract_file_id(msg: Message) -> str | None:
 
 
 async def _send_with_cache(
-    sender: MsgSender,
-    chat_id: int,
-    local_path: Path,
+        sender: MsgSender,
+        chat_id: int,
+        local_path: Path,
 ) -> Message | None:
     """
     • 如果 file_id 缓存命中：直接秒发
@@ -81,6 +86,8 @@ async def _send_with_cache(
     """
     key = local_path.name
     if fid := cache_get(key):
+        record.fid[key] = fid
+        record.to_fid = True
         try:
             logger.debug(f"用 file_id 秒回 ({key})")
             return await sender.send_document(fid)
@@ -104,17 +111,17 @@ async def _send_with_cache(
 # Entry point (kept for external references)
 # ════════════════════════════════════════════════
 async def music_command(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-    *,
-    is_command: bool = True,
+        update: Update,
+        context: ContextTypes.DEFAULT_TYPE,
+        *,
+        is_command: bool = True,
 ) -> Message | None:
     """/music 与纯文本两种触发方式共用一个入口。"""
     logger.info("music_command start >>>")
 
     uid = update.effective_user.id
     sender = MsgSender(update)
-
+    record.uid = uid
     # ---- 速率限制 & 同用户单任务 ----
     if not rate_limiter.allow(uid):
         return await sender.send("操作过于频繁，请稍后再试")
@@ -131,7 +138,7 @@ async def music_command(
         target = context.args[0] if is_command else update.effective_message.text
 
         await sender.react("👀")
-        await sender.typing()   # 正在输入状态
+        await sender.typing()  # 正在输入状态
 
         # ---- I/O 密集：放线程池 ----
         loop = asyncio.get_running_loop()
@@ -139,10 +146,13 @@ async def music_command(
             executor, functools.partial(_download_or_hit, target)
         )
         # ---- 发送 & 缓存 file_id ----
-        return await _send_with_cache(sender, update.effective_chat.id, local_path)
+        msg =  await _send_with_cache(sender, update.effective_chat.id, local_path)
+        record.success = True
+        return msg
 
     except Exception as e:
         logger.exception("music_command 失败：%s", e)
         await sender.send(EXCEPTION_MSG)
     finally:
         task_manager.release(uid)
+        _record_user_parse(record)

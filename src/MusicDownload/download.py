@@ -84,6 +84,7 @@ def download_single(single_input, output_dir='downloads'):
     saved = download_file(real_url, song_name, output_dir)
     log.debug(f"Saved: {saved}")
     log.debug("Single download complete.")
+    return page_url, real_url
 
 
 def main():

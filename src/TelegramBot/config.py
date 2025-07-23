@@ -37,6 +37,7 @@ DOUYIN_SAVE_DIR = BASE_DIR / "dy_downloads"
 MUSIC_SAVE_DIR = BASE_DIR / "music_downloads"
 
 EXCEPTION_MSG = "出了点错误! 请稍候重试\n或将错误链接发送给 @axlxlw"
+EXCEPTION_MSG_TO_LOG = ""
 
 for _p in (BILI_SAVE_DIR, DOUYIN_SAVE_DIR, MUSIC_SAVE_DIR):
     _p.mkdir(exist_ok=True)
