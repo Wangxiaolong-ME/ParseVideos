@@ -15,7 +15,7 @@ from telegram.helpers import escape_markdown
 from TelegramBot import config
 from DouyinDownload.douyin_post import DouyinPost  # 你现有的脚本
 from TelegramBot.cleaner import purge_old_files
-from TelegramBot.config import DOUYIN_SAVE_DIR, MAX_THREAD_WORKERS, EXCEPTION_MSG
+from TelegramBot.config import DOUYIN_SAVE_DIR, MAX_THREAD_WORKERS, EXCEPTION_MSG, DOWNLOAD_TIMEOUT
 from TelegramBot.task_manager import TaskManager
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.utils import MsgSender
@@ -74,10 +74,12 @@ def _download_or_hit(url: str):
     dy.width = option.width
     dy.duration = option.duration
     dy.download_url = option.url
+    dy.size = option.size_mb
 
     # 若所有清晰度都 > 50 MB，则取体积最小的
     smallest = min(post.processed_video_options, key=lambda o: o.size_mb)
     if smallest.size_mb > 50:
+        dy.size = smallest.size_mb
         download_link = post.processed_video_options[0].url
         dy.download_url = download_link
         display = f"{dy.title}"
@@ -102,7 +104,7 @@ def _download_or_hit(url: str):
         return dy
 
     logger.info("开始下载 -> %s", url)
-    v_path = post.download_option(option)  # 返回 mp4
+    v_path = post.download_option(option, timeout=DOWNLOAD_TIMEOUT)  # 返回 mp4
     Path(v_path).rename(local_path)  # 统一命名
     logger.info("下载完成 -> %s", local_path.name)
     dy.path = local_path

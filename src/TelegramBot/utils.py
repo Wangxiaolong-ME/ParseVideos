@@ -137,7 +137,7 @@ class MsgSender:
                 document=document,
                 caption=caption,
                 quote=reply,  # True → 回复原消息
-                write_timeout=60,
+                write_timeout=20,
                 read_timeout=20,
                 **kwargs,
             )
@@ -193,8 +193,8 @@ class MsgSender:
                 height=height,
                 quote=reply,
                 supports_streaming=supports_streaming,
-                write_timeout=300,
-                read_timeout=120,
+                write_timeout=100,
+                read_timeout=60,
                 **kwargs,
             )
         finally:

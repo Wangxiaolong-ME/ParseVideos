@@ -2,6 +2,7 @@
 """
 HTTP 下载工具，支持进度显示与异常捕获。
 """
+import logging
 import os
 import sys
 import threading
@@ -178,6 +179,7 @@ class Downloader:
             timeout: int = 60,
             max_redirects: int = 5,
             multi_session: bool = False,
+            session_count: int = 2,
     ) -> str:
         """
         下载文件，先跟踪重定向，再根据 total(length or 响应头)决定单/多线程下载。
@@ -191,6 +193,20 @@ class Downloader:
         resp_head = self.session.head(final_url, headers=headers or {}, timeout=timeout)
         resp_head.raise_for_status()
         total = int(resp_head.headers.get('Content-Length', 0))
+
+        # —— 新增：根据 session_count 构造 Session 池 ——
+        # session_count=None 时：每线程一个 Session（原行为）；否则只生成固定数量的 Session
+        if multi_session and session_count:
+            # 创建固定数量的 Session
+            session_pool = []
+            for _ in range(session_count):
+                sess = requests.Session()
+                sess.trust_env = self.session.trust_env
+                sess.headers.update(self.session.headers)
+                session_pool.append(sess)
+        else:
+            # 原行为：每个线程用它自己的 session
+            session_pool = [None] * self.threads
 
         # 共享下载计数和锁
         downloaded_counter = [0]
@@ -216,14 +232,26 @@ class Downloader:
             logger.debug(f"[Downloader] [thread-{i}] range {s}-{e} tmp={tmp}")
 
             # --- 关键行：决定该分片用哪个 session ---
-            if multi_session:
-                sess = requests.Session()
-                # 若你需要复用代理 / cookie，可简单拷贝：
-                sess.trust_env = self.session.trust_env
-                sess.headers.update(self.session.headers)  # 可根据实际需求调整
-                logger.debug(f"[Downloader] [thread-{i}] new Session() created")
+            # if multi_session:
+            #     sess = requests.Session()
+            #     # 若你需要复用代理 / cookie，可简单拷贝：
+            #     sess.trust_env = self.session.trust_env
+            #     sess.headers.update(self.session.headers)  # 可根据实际需求调整
+            #     logger.debug(f"[Downloader] [thread-{i}] new Session() created")
+            # else:
+            #     sess = self.session
+
+            # 从池里取 sess：
+            if multi_session and session_count:
+                sess = session_pool[i % session_count]
+                logger.debug(f"[Downloader] 从线程池中取线程 [thread-{i}] reuse Session from pool idx={i % session_count}")
             else:
-                sess = self.session
+                # 要么每线程新建（原行为），要么全用 self.session
+                sess = (requests.Session() if multi_session else self.session)
+                if multi_session:
+                    sess.trust_env = self.session.trust_env
+                    sess.headers.update(self.session.headers)
+                    logger.debug(f"[Downloader] [thread-{i}] new Session() created")
 
             t = SegmentDownloader(
                 session=sess,
@@ -240,8 +268,33 @@ class Downloader:
             t.start()
             threads.append(t)
 
+        # for t in threads:
+        #     t.join()
+        # 带超时保护等待分片线程完成
+        start_time = time.time()
+        timed_out = False
         for t in threads:
-            t.join()
+            elapsed = time.time() - start_time
+            remaining = timeout - elapsed
+            if remaining <= 0:
+                timed_out = True
+                break
+            t.join(remaining)
+        # 如果超时，则提前回退到单线程下载
+        if timed_out:
+            logger.warning(f"下载超时（> {timeout}s），回退单线程下载")
+            # 清理所有临时分片
+            monitor.stop()
+            logger.warning(f"停止监控")
+            monitor.join()
+            # 尝试删除临时分片
+            for _, tmp in tmp_files:
+                if os.path.exists(tmp):
+                    try:
+                        os.remove(tmp)
+                    except PermissionError:
+                        logging.warning(f"无法删除临时文件，可能仍被占用，跳过: {tmp}")
+            return self._single_download(url, path, headers, timeout)
 
         # 收集结果并停止监控
         segments = {}
@@ -301,5 +354,7 @@ class Downloader:
                     )
                     sys.stdout.flush()
         sys.stdout.write("\n")
+        sys.stdout.flush()
+        logger.debug(f"耗时:{elapsed}, 平均速度: {speed_str}")
         os.replace(tmp, path)
         return path

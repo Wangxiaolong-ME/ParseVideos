@@ -316,7 +316,7 @@ class DouyinPost:
 
         return saved_paths
 
-    def download_option(self, option: VideoOption, timeout: int = 60) -> str:
+    def download_option(self, option: VideoOption, timeout: int = 20) -> str:
         """
         直接按给定的 VideoOption 下载，返回本地文件路径。
 
@@ -340,7 +340,7 @@ class DouyinPost:
         log.debug(f"  预计大小: {option.size_mb or '未知'} MB")
 
         start = datetime.now()
-        self.downloader.download(option.url, out_path, timeout=timeout)
+        self.downloader.download(option.url, out_path, timeout=timeout, multi_session=True, session_count=2)
         cost = (datetime.now() - start).total_seconds()
 
         size_mb = os.path.getsize(out_path) / (1024 * 1024)
