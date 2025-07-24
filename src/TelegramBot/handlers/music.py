@@ -125,7 +125,7 @@ async def music_command(
     sender = MsgSender(update)
     record.uid = uid
     uname = update.effective_user.username or "(无用户名)"
-    name = update.effective_user.full_name  # 显示名
+    name = update.effective_user.last_name or ''  + update.effective_user.first_name or ''  # 显示名
     record.uname = uname
     record.full_name = name
 

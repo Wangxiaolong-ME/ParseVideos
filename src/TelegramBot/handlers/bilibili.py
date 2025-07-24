@@ -207,7 +207,7 @@ async def bili_command(
 
     record.uid = uid
     uname = update.effective_user.username or "(无用户名)"
-    name = update.effective_user.full_name  # 显示名
+    name = update.effective_user.last_name or ''  + update.effective_user.first_name or ''  # 显示名
     record.uname = uname
     record.full_name = name
 
@@ -248,7 +248,8 @@ async def bili_command(
 
         # 预览视频，直接发送
         if not bili.gear_name:
-            return await _send_with_cache(sender, bili, progress_msg=progress_msg)
+            await _send_with_cache(sender, bili, progress_msg=progress_msg)
+            record.success = True
 
         logger.info(f"开始上传视频,视频标题:{bili.title}, 文件大小：{bili.size}MB")
         # >50 MB：返回 Markdown 链接

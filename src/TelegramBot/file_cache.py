@@ -22,7 +22,7 @@ def load() -> None:
 def save() -> None:
     try:
         CACHE_FILE.write_text(json.dumps(_cache, ensure_ascii=False), "utf-8")
-        logger.debug(f"save cache")
+        logger.info(f"save cache success.")
     except Exception:
         pass                               # 避免影响主流程
 
