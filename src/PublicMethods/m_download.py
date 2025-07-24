@@ -7,6 +7,8 @@ import requests
 from queue import Queue
 import logging
 
+from PublicMethods.tools import prepared_to_curl
+
 logger = logging.getLogger(__name__)
 
 
@@ -277,6 +279,7 @@ class Downloader:
             timeout: int = 15,
             max_redirects: int = 5,
             return_flag: Optional[str] = None,
+            use_get=False,
     ) -> str:
         """
         手动跟踪 301/302/307 等重定向，返回最终 200 OK 的下载链接。
@@ -303,13 +306,22 @@ class Downloader:
 
         for i in range(max_redirects):
             try:
-                # 使用 HEAD 请求，只获取头部信息，减少带宽消耗
-                resp = self.default_session.head(
-                    current_url,
-                    headers=headers or {},
-                    timeout=timeout,
-                    allow_redirects=False  # 禁止 requests 自动处理重定向
-                )
+                # 特殊情况使用 GET 请求
+                if use_get:
+                    resp = self.default_session.get(
+                        current_url,
+                        headers=headers or {},
+                        timeout=timeout,
+                        allow_redirects=False  # 禁止 requests 自动处理重定向
+                    )
+                else:
+                    # 使用 HEAD 请求，只获取头部信息，减少带宽消耗
+                    resp = self.default_session.head(
+                        current_url,
+                        headers=headers or {},
+                        timeout=timeout,
+                        allow_redirects=False  # 禁止 requests 自动处理重定向
+                    )
                 resp.raise_for_status()  # 检查 HTTP 状态码
 
                 # 如果是重定向状态码

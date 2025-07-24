@@ -31,6 +31,9 @@ def get(key: str) -> str | None:
     return _cache.get(key)
 
 def put(key: str, file_id: str) -> None:
+    if not file_id:
+        logger.error("cache file_id = None! skip.")
+        return
     _cache[key] = file_id
     logger.debug(f"put cache:_cache[key] = {file_id}")
     save()
