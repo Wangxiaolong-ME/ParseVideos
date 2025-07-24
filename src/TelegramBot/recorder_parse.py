@@ -100,6 +100,7 @@ def _record_user_parse(info: UserParseResult):
             "cache_info": info.fid,
             "is_cached_hit": True,
             "parse_success": info.success,
+            "work_time_s": work_time_s,
         }
     else:
         # 非缓存命中（新解析）时，构建完整记录
