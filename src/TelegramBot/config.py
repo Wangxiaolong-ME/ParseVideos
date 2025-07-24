@@ -3,6 +3,8 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 import platform
+import logging
+log = logging.getLogger(__name__)
 
 os_name = platform.system()
 
@@ -17,6 +19,7 @@ PROXY_SWITCH = 'Win' in os_name  # 代理开关
 # —————————— TelegramBot配置 ——————————
 MIN_MSG_INTERVAL = 2.0  # 2 秒只能发一次，速率限制
 TELEGRAM_TOKEN_ENV = os.getenv('TELEGRAM_TOKEN', '')
+log.debug(f"TELEGRAM_TOKEN={TELEGRAM_TOKEN_ENV[:10]}*********")
 ADMIN_ID = 6040522700  # 管理员 TG ID
 ALLOWED_USERS = {ADMIN_ID}  # 白名单用户，可扩展为数据库
 # —————————— TelegramBot配置 ——————————
@@ -36,7 +39,8 @@ DOUYIN_SAVE_DIR = BASE_DIR / "dy_downloads"
 
 BILI_SAVE_DIR = BASE_DIR / "bili_downloads"  # 保存路径
 DEFAULT_DOWNLOAD_THREADS = 8  # 默认线程
-BILI_COOKIE = {'SESSDATA': os.getenv('SESSDATA')}
+BILI_COOKIE = {'SESSDATA': os.getenv('SESSDATA','')}
+log.debug(f"SESSDATA={BILI_COOKIE['SESSDATA'][:10]}*********")
 
 # —————————— B站配置 ——————————
 
