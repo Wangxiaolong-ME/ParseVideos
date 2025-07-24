@@ -115,7 +115,7 @@ def _record_user_parse(info: UserParseResult):
             "title": info.title,
             "is_cached_hit": False,
             "parse_success": info.success,
-            "parse_exception": info.exception,
+            "parse_exception": str(info.exception),
             "size": info.size if info.success else None,
             "parsed_url": info.parsed_url if info.success else None,
             "work_time_s": work_time_s,

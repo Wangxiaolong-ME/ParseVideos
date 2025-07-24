@@ -2,7 +2,6 @@
 """
 HTTP 下载工具，支持进度显示与异常捕获。
 """
-import logging
 import os
 import sys
 import threading
