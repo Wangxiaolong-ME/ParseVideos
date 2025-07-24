@@ -403,8 +403,8 @@ class Downloader:
             # 检查是否支持 Range 请求
             accept_ranges = resp_head.headers.get('Accept-Ranges')
             if not accept_ranges or 'bytes' not in accept_ranges.lower():
-                logger.warning(f"服务器不支持 Range 请求 ({accept_ranges})，将回退到单线程下载。")
-                return self._single_download(final_url, path, headers, timeout)
+                logger.warning(f"服务器不支持 Range 请求 ({accept_ranges})，将尝试继续多线程下载")
+                # return self._single_download(final_url, path, headers, timeout)
 
         except DownloadError as e:
             logger.error(f"获取最终 URL 或文件大小失败: {e}")
