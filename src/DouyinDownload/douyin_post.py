@@ -11,7 +11,7 @@ from typing import List, Optional, Union
 
 import requests
 
-from DouyinDownload.config import DEFAULT_SAVE_DIR
+from DouyinDownload.config import DEFAULT_SAVE_DIR, DOWNLOAD_HEADERS
 from PublicMethods.m_download import Downloader
 from DouyinDownload.exceptions import ParseError
 from DouyinDownload.models import VideoOption
@@ -97,6 +97,36 @@ class DouyinPost:
             # 默认按分辨率降序排序
             self.sort_options(by='resolution', descending=True)
         return self
+
+    def get_content_type(self, short_url: str) -> str:
+        """
+        通过 HEAD 请求重定向地址判断给定短链接指向的内容类型 (video 或 image_album)。
+        Returns: "video", "image_album", or "unknown"
+        """
+        try:
+            # 不能没有头，第二条会成功；也不能有准确的头，第三台跳会444，所以设置模糊头
+            headers= DOWNLOAD_HEADERS
+            headers['User-Agent'] = 'p'
+            final_url = self.downloader._get_final_url(short_url, headers=headers, return_filed_url=True)
+            log.debug(f"通过 HEAD 请求重定向判断指向内容类型: {final_url}")
+            if "/video/" in final_url:
+                log.debug(f"指向内容为视频")
+                return "video"
+            elif "/note/" in final_url:
+                log.debug(f"指向内容为图集")
+                return "images"
+            else:
+                log.debug(f"指向内容未知")
+                return "unknown"
+
+        except requests.exceptions.RequestException as e:
+            # 捕获所有 requests 相关的异常，例如连接错误、超时、HTTP 错误等
+            print(f"HEAD 请求失败或发生错误: {e}")  # 可以替换为 logging.error
+            return "unknown"
+        except Exception as e:
+            # 捕获其他未知异常
+            print(f"判断内容类型时发生未知错误: {e}")  # 可以替换为 logging.error
+            return "unknown"
 
     # --- 链接处理方法 (Link Processing Methods) ---
 

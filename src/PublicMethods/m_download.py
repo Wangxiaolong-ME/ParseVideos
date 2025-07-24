@@ -7,8 +7,6 @@ import requests
 from queue import Queue
 import logging
 
-from PublicMethods.tools import prepared_to_curl
-
 logger = logging.getLogger(__name__)
 
 
@@ -280,6 +278,7 @@ class Downloader:
             max_redirects: int = 5,
             return_flag: Optional[str] = None,
             use_get=False,
+            return_filed_url=False,
     ) -> str:
         """
         手动跟踪 301/302/307 等重定向，返回最终 200 OK 的下载链接。
@@ -291,6 +290,7 @@ class Downloader:
             timeout (int): 请求超时时间。
             max_redirects (int): 最大重定向次数。
             return_flag (str, optional): 如果重定向URL包含此标志，则提前返回。
+            return_filed_url 返回最后失败的那个url
 
         返回:
             str: 最终的下载 URL。
@@ -322,7 +322,8 @@ class Downloader:
                         timeout=timeout,
                         allow_redirects=False  # 禁止 requests 自动处理重定向
                     )
-                resp.raise_for_status()  # 检查 HTTP 状态码
+                if not return_filed_url:
+                    resp.raise_for_status()  # 检查 HTTP 状态码
 
                 # 如果是重定向状态码
                 if resp.status_code in (301, 302, 303, 307, 308) and 'Location' in resp.headers:
@@ -343,6 +344,8 @@ class Downloader:
                     visited_urls.add(location)
                     current_url = location
                     continue
+                elif return_filed_url:
+                    return current_url
 
                 # 非重定向状态码，表示已找到最终资源
                 logger.debug(

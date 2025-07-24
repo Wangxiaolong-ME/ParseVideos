@@ -35,3 +35,5 @@ PLAYWRIGHT_TIMEOUT = 30000
 # 抖音作品详情API的URL特征
 # URL feature for Douyin post detail API
 AWEME_DETAIL_API_URL = "/aweme/v1/web/aweme/detail/"
+# 图集网页所需Cookie字段，请求接口时校验
+IMAGES_NEED_COOKIES = ['__ac_signature', '__ac_nonce']

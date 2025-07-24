@@ -1,8 +1,9 @@
 # src/TelegramBot/utils.py
 import time
 from pathlib import Path
-from typing import Union, IO
-from telegram import InputFile, Message, Update, ReactionTypeEmoji, ReactionTypeCustomEmoji, InputMediaVideo
+from typing import Union, IO, List, Optional, Any, Coroutine
+from telegram import InputFile, Message, Update, ReactionTypeEmoji, ReactionTypeCustomEmoji, InputMediaVideo, \
+    InputMediaPhoto
 from telegram.constants import ChatAction
 
 import logging
@@ -21,7 +22,7 @@ def format_duration(seconds: int | float, ms=False) -> str:
     if not seconds:
         return 'None'
 
-    seconds = int(round(seconds)) # 四舍五入并转成整数
+    seconds = int(round(seconds))  # 四舍五入并转成整数
 
     if seconds < 60:
         return f"{seconds}秒"
@@ -148,6 +149,60 @@ class MsgSender:
 
         log.debug("reply_document 耗时 %.2f s", time.perf_counter() - start)
         return msg
+
+    async def send_media_group(
+            self,
+            media: List[InputMediaPhoto],  # 接收 InputMediaPhoto 对象的列表
+            progress_msg: Optional[Message] = None,
+            reply_to_message_id: Optional[int] = None,  # 明确添加回复消息ID参数
+            **kwargs
+    ) -> tuple[Message, ...] | list[Any]:
+        """
+        发送媒体组（例如图片集）。
+        Args:
+            media: InputMediaPhoto 对象的列表。
+            progress_msg: 用于显示进度的消息对象，发送前会被更新。
+            reply_to_message_id: 可选的回复消息ID。
+        Returns:
+            发送成功的 Message 对象列表。
+        """
+        if not media:
+            log.warning("media_group media 列表为空，不执行发送。")
+            return []
+
+        if progress_msg:
+            try:
+                await progress_msg.edit_text(f"图片上传中... (共 {len(media)} 张)")
+            except Exception as e:
+                log.warning(f"无法编辑进度消息: {e}")
+
+        try:
+            # 直接使用 self.bot 和 self.chat_id
+            # reply_to_message_id 应是具体的消息ID
+            send_kwargs = {
+                "chat_id": self._chat_id,
+                "media": media,
+            }
+            if reply_to_message_id:
+                send_kwargs["reply_to_message_id"] = reply_to_message_id
+            send_kwargs.update(kwargs)  # 将 kwargs 合并到发送参数中
+
+            sent_messages = await self._bot.send_media_group(**send_kwargs, read_timeout=60)
+
+            if progress_msg:
+                try:
+                    await progress_msg.delete()  # 发送成功后删除进度消息
+                except Exception as e:
+                    log.warning(f"无法删除进度消息: {e}")
+            return sent_messages
+        except Exception as e:
+            log.error(f"发送媒体组失败: {e}", exc_info=True)
+            if progress_msg:
+                try:
+                    await progress_msg.edit_text("发送图片集失败。")
+                except Exception as edit_e:
+                    log.warning(f"无法编辑失败消息: {edit_e}")
+            raise  # 重新抛出异常，让上层处理
 
     async def send_video(
             self,

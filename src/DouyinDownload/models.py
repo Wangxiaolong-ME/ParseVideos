@@ -4,7 +4,9 @@
 Defines data models to structurally represent business objects.
 """
 from dataclasses import dataclass, field
-from typing import Optional, List
+from typing import Optional, List, Any
+
+
 
 @dataclass
 class VideoOption:
@@ -37,3 +39,20 @@ class VideoOption:
             f"<VideoOption resolution={self.resolution}p, "
             f"bit_rate={self.bit_rate}, size={size_str}, url='{self.url}'>"
         )
+@dataclass
+class ImageOptions:
+    """
+    封装单个视频下载选项的所有信息。
+    """
+    aweme_id: str
+    desc: str
+    create_time: int
+    author_info: Optional[str: Any]
+    images: Optional[list[str: Any]]
+
+@dataclass
+class Image:
+    width: int
+    height: int
+    url: str
+    local_path: str
