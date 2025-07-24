@@ -1,4 +1,5 @@
 import json
+import os
 import time
 from dataclasses import dataclass, asdict, field
 from datetime import datetime
@@ -7,6 +8,10 @@ import logging
 log = logging.getLogger(__name__)
 
 STATS_FILE = Path(__file__).with_name("user_stats.json")
+# 定义一个备份文件路径，用于在写入前备份原始数据
+STATS_FILE_BAK = STATS_FILE.with_stem(STATS_FILE.stem + "_backup").with_suffix(".json")
+# 定义一个临时文件路径，用于原子性写入
+STATS_FILE_TMP = STATS_FILE.with_stem(STATS_FILE.stem + "_tmp").with_suffix(".json")
 
 
 @dataclass
@@ -59,21 +64,38 @@ def _record_user_parse(info: UserParseResult):
     在函数内部根据 info.fid 字段判断是否为缓存命中，从而无需修改调用方。
     """
     log.debug(f"用户解析详情信息：{info.__dict__}")
-    data = {}
+    current_data = {}
+
+    # 1. 尝试从主文件加载数据
     if STATS_FILE.exists():
         try:
             with open(STATS_FILE, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        except json.JSONDecodeError:
-            log.error(f"警告: 统计文件 '{STATS_FILE}' 内容损坏或为空，将初始化空记录。")
-            data = {}
+                current_data = json.load(f)
+            log.debug(f"成功从主文件 '{STATS_FILE}' 加载数据。")
+        except json.JSONDecodeError as e:
+            log.error(f"警告: 统计文件 '{STATS_FILE}' 内容损坏或为空 ({e})。尝试从备份文件恢复。")
+            # 如果主文件损坏，尝试从备份文件恢复
+            if STATS_FILE_BAK.exists():
+                try:
+                    with open(STATS_FILE_BAK, 'r', encoding='utf-8') as f_bak:
+                        current_data = json.load(f_bak)
+                    log.info(f"成功从备份文件 '{STATS_FILE_BAK}' 恢复数据。")
+                except json.JSONDecodeError as e_bak:
+                    log.error(f"严重错误: 备份文件 '{STATS_FILE_BAK}' 也损坏 ({e_bak})。将从空记录开始，数据可能丢失！")
+                    current_data = {}  # 备份也损坏，只能从空开始
+                except Exception as e_bak:
+                    log.error(f"读取备份文件时发生未知错误: {e_bak}。将从空记录开始。")
+                    current_data = {}
+            else:
+                log.warning(f"没有找到备份文件 '{STATS_FILE_BAK}'。将从空记录开始，数据可能丢失。")
+                current_data = {}  # 没有备份文件，只能从空开始
         except Exception as e:
-            log.error(f"读取统计文件时发生错误: {e}。将初始化空记录。")
-            data = {}
+            log.error(f"读取主文件 '{STATS_FILE}' 时发生未知错误: {e}。将从空记录开始。")
+            current_data = {}
 
     user_key = str(info.uid)
-    if user_key not in data:
-        data[user_key] = {"records": []}
+    if user_key not in current_data:
+        current_data[user_key] = {"records": []}
 
     # 如果 info.fid 不为空，则认为是缓存命中
     is_cached_hit = bool(info.fid)
@@ -96,6 +118,7 @@ def _record_user_parse(info: UserParseResult):
             "uid": info.uid,  # 根据之前的逻辑，UID 是每个记录的基础标识，保留
             "uname": info.uname,
             "full_name": info.full_name,
+            "title": info.title,
             "platform": info.platform,
             "cache_info": info.fid,
             "is_cached_hit": True,
@@ -129,17 +152,41 @@ def _record_user_parse(info: UserParseResult):
     if not is_cached_hit:  # 如果是新视频解析 (即 info.fid 为空)
         # 假设我们不希望重复记录同一个 vid 的新解析成功事件
         # 您可以根据实际需求调整这里的去重策略
-        if any(rec.get("vid") == info.vid and not rec.get("is_cached_hit") for rec in data[user_key]["records"]):
+        if any(rec.get("vid") == info.vid and not rec.get("is_cached_hit") for rec in current_data[user_key]["records"]):
             log.warning(f"检测到重复的新视频记录 (VID: {info.vid})，跳过追加。")
             return  # 避免重复记录新视频
 
     # 追加记录
-    data[user_key]["records"].append(asdict(record_entry))
+    current_data[user_key]["records"].append(asdict(record_entry))
 
-    # 写回文件
+    # 2. 原子性写入：先写入临时文件
     try:
-        with open(STATS_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        log.info(f"record user parsed info success.")
+        with open(STATS_FILE_TMP, 'w', encoding='utf-8') as f_tmp:
+            json.dump(current_data, f_tmp, ensure_ascii=False, indent=2)
+        log.debug(f"数据成功写入临时文件 '{STATS_FILE_TMP.name}'。")
     except Exception as e:
-        log.error(f"写入统计文件时发生错误: {e}")
+        log.error(f"写入临时文件 '{STATS_FILE_TMP}' 时发生错误: {e}。本次记录将失败，且主文件未被修改。")
+        # 写入临时文件失败，直接返回，不影响主文件
+        return
+
+    # 3. 替换主文件：先备份，再移动
+    try:
+        if STATS_FILE.exists():
+            # 先将现有主文件备份
+            os.replace(STATS_FILE, STATS_FILE_BAK)
+            log.debug(f"主文件 '{STATS_FILE.name}' 已备份至 '{STATS_FILE_BAK}'。")
+
+        # 将临时文件重命名为 STATS_FILE，这是原子操作
+        os.replace(STATS_FILE_TMP, STATS_FILE)
+        log.debug(f"用户解析记录成功保存到 '{STATS_FILE.name}'。")
+
+        log.info(f"record user parsed info success.")
+        # 理论上可以删除备份文件，但为了更高的安全性，可以保留备份文件作为历史快照
+        # os.remove(STATS_FILE_BAK)
+        # log.debug(f"备份文件 '{STATS_FILE_BAK}' 已删除。")
+
+    except Exception as e:
+        log.error(
+            f"执行原子性文件替换时发生错误: {e}。数据可能处于不一致状态，请检查 '{STATS_FILE}' 和 '{STATS_FILE_BAK}'。")
+        # 这种情况下，可能需要人工介入检查文件状态
+        # 主文件可能已经损坏或丢失，但至少备份文件可能还在

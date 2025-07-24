@@ -339,7 +339,7 @@ class DouyinPost:
 
         start = datetime.now()
         self.downloader.download(option.url, out_path, timeout=timeout, multi_session=True,
-                                 session_count=DOUYIN_SESSION_COUNTS)
+                                 session_pool_size=DOUYIN_SESSION_COUNTS)
         cost = (datetime.now() - start).total_seconds()
 
         size_mb = os.path.getsize(out_path) / (1024 * 1024)

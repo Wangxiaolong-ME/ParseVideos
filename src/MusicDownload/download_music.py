@@ -42,7 +42,7 @@ MK_HEADERS = {
 }
 # ——————————————
 
-def get_download_link(song_page_url):
+def get_download_link(song_page_url, return_song_id= False):
     """
     调用 music_v1.php，返回单曲的真实下载 URL。
     使用静态 HEADER_TOKEN 和 BODY_TOKEN。
@@ -70,6 +70,8 @@ def get_download_link(song_page_url):
         raise RuntimeError(f"未获取到下载链接：{js}")
     # 从接口里拿 song_info.name
     song_name = js.get("song_info", {}).get("name", song_id)
+    if return_song_id:
+        return download_url, song_name, song_id
     return download_url, song_name
 
 def download_file(download_url, song_name, save_dir):

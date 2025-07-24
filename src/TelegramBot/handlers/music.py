@@ -52,8 +52,10 @@ def _download_or_hit(target: str) -> Path:
     """
     # ① 先清理超过时间的本地缓存
     purge_old_files(MUSIC_SAVE_DIR, keep_hours=2)
-    _, song_name = get_download_link(target)
+    _, song_name, song_id = get_download_link(target, return_song_id=True)
     local_path = MUSIC_SAVE_DIR / f"{_safe_filename(song_name)}.mp3"
+    record.title = song_name
+    record.vid = f"MUSIC{song_id}"
 
     if local_path.exists():
         logger.debug("命中磁盘缓存 -> %s", local_path.name)
@@ -70,22 +72,24 @@ def _download_or_hit(target: str) -> Path:
 def _extract_file_id(msg: Message) -> str | None:
     """兼容 document / audio 两种返回类型。"""
     if msg.document:
+        logger.debug(f"Message 类型为document")
         return msg.document.file_id
     if msg.audio:
+        logger.debug(f"Message 类型为audio")
         return msg.audio.file_id
+    logger.warning(f"Message 类型未知，无法获取fid")
     return None
 
 
 async def _send_with_cache(
         sender: MsgSender,
-        chat_id: int,
         local_path: Path,
 ) -> Message | None:
     """
     • 如果 file_id 缓存命中：直接秒发
     • 否则上传文件并写回缓存
     """
-    key = local_path.name
+    key = record.vid
     if fid := cache_get(key):
         record.fid[key] = fid
         record.to_fid = True
@@ -153,7 +157,7 @@ async def music_command(
             executor, functools.partial(_download_or_hit, target)
         )
         # ---- 发送 & 缓存 file_id ----
-        msg =  await _send_with_cache(sender, update.effective_chat.id, local_path)
+        msg =  await _send_with_cache(sender, local_path)
         record.success = True
         return msg
 
