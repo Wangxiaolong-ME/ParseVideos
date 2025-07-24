@@ -22,7 +22,7 @@ async def handle_general_url(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # 解析简报发送给管理员
     if update.effective_user.id != ADMIN_ID:
-        uname = f"@{update.effective_user.name}" or ""
+        uname = update.effective_user.name or ""
         full_name = update.effective_user.full_name
         await update.get_bot().send_message(ADMIN_ID, f"{uname}[{full_name}] parsed {platform}")
 
