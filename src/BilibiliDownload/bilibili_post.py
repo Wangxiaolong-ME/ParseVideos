@@ -84,6 +84,7 @@ class BilibiliPost:
         self.selected_video = self.video_options[0] if self.video_options else None
         self.selected_audio = self.audio_options[0] if self.audio_options else None
         self._update_self_data()
+        log.debug(f"select_highest:{self.selected_video}")
         return self
 
     def select_lowest(self):
@@ -91,6 +92,7 @@ class BilibiliPost:
         self.selected_video = self.video_options[-1] if self.video_options else None
         self.selected_audio = self.audio_options[-1] if self.audio_options else None
         self._update_self_data()
+        log.debug(f"select_lowest:{self.selected_video}")
         return self
 
     def _update_self_data(self):
@@ -130,9 +132,13 @@ class BilibiliPost:
         # 如果筛选结果为空，兜底取最小文件
         if not kept:
             self.select_lowest()
+            log.warning(f"筛选结果为空，选择最小文件")
         else:
             self.selected_video = kept[0]   # 0为质量最好的
+            log.debug(f"筛选保留{len(kept)}个视频,(min={min_mb}MB, max={max_mb}MB)")
+            log.debug(f"保留视频列表:{kept}")
             self._update_self_data()
+            log.debug(f"从筛选的视频中选择质量最高的:{self.selected_video}")
 
         self.logger.debug(
             f"按大小筛选：从 {len(self.video_options)} 个选项中保留 {len(kept)} 个"

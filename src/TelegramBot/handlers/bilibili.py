@@ -164,15 +164,15 @@ async def _send_with_cache(sender: MsgSender, bili: Bili, progress_msg: Message)
         try:
             record.fid[bili.vid] = fid
             record.to_fid = True
+            # 大于50M的视频，但是有缓存链接的会被记录为http下载直链
             if isinstance(fid, str) and 'http' in fid:
-                display = f"*标题：{bili.title}*"
-                title_or_md = f"[{escape_markdown(display, version=2)}]({escape_markdown(fid, version=2)})"
+                await progress_msg.delete()     # 上传文本，将占位消息删除
+                title_or_md = f"[{escape_markdown(bili.title, version=2)}]({escape_markdown(fid, version=2)})"
                 return await sender.send(
-                    f"✅ 请点击下方链接下载：\n{title_or_md}",
+                    f"✅ 上传完成！由于视频超过 50 MB，请点击下方链接下载：\n{title_or_md}",
                     reply=True,
                     parse_mode=ParseMode.MARKDOWN_V2,
                     preview=False,
-                    progress_msg=progress_msg,
                 )
             return await sender.send_video(fid, caption=bili.title, progress_msg=progress_msg)
         except BadRequest as e:
@@ -261,9 +261,7 @@ async def bili_command(
             bili.md_title += f"({escape_markdown(url, version=2)})"
             msg = await progress_msg.edit_text(
                 f"✅ 上传完成！\n 由于视频超过 50 MB，请点击下方链接下载：\n{bili.md_title}",
-                reply=True,
                 parse_mode=ParseMode.MARKDOWN_V2,
-                preview=False,
             )
             record.success = True
             return msg
