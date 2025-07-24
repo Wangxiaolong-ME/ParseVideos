@@ -3,9 +3,8 @@
 定义数据模型，用于结构化地表示业务对象。
 Defines data models to structurally represent business objects.
 """
-from dataclasses import dataclass, field
-from typing import Optional, List, Any
-
+from dataclasses import dataclass
+from typing import Optional, Any, Dict, List
 
 
 @dataclass
@@ -47,8 +46,8 @@ class ImageOptions:
     aweme_id: str
     desc: str
     create_time: int
-    author_info: Optional[str: Any]
-    images: Optional[list[str: Any]]
+    author_info: Optional[Dict[str, Any]]
+    images: Optional[List[Dict[str, Any]]]
 
 @dataclass
 class Image:
@@ -56,3 +55,4 @@ class Image:
     height: int
     url: str
     local_path: str
+    aweme_id: Optional[str] = None
