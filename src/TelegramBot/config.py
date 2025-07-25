@@ -63,7 +63,7 @@ MUSIC_SAVE_DIR = BASE_DIR / "music_downloads"
 
 
 # —————————— 通用配置 ——————————
-MAX_THREAD_WORKERS = 2  # download 线程池大小
+MAX_THREAD_WORKERS = 5  # download 线程池大小
 EXCEPTION_MSG = "出了点错误! 请稍候再次尝试\n或将错误链接发送给 @axlxlw"
 EXCEPTION_MSG_TO_LOG = ""
 # —————————— 通用配置 ——————————
