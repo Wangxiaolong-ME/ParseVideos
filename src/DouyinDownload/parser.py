@@ -17,9 +17,7 @@ from DouyinDownload.exceptions import URLExtractionError, ParseError
 from DouyinDownload.models import VideoOption, ImageOptions
 import logging
 
-from PublicMethods.functool_timeout import retry_on_timeout
 from PublicMethods.tools import prepared_to_curl
-from TelegramBot.config import DOUYIN_PARSE_IMAGE_TIMEOUT,DOUYIN_PARSE_VIDEO_TIMEOUT
 
 log = logging.getLogger(__name__)
 
@@ -296,7 +294,6 @@ class DouyinParser:
             images=images
         )
 
-    @retry_on_timeout(*DOUYIN_PARSE_IMAGE_TIMEOUT)
     def fetch_images(self, short_url):
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True, args=['--disable-images'])
@@ -321,7 +318,6 @@ class DouyinParser:
             finally:
                 browser.close()
 
-    @retry_on_timeout(*DOUYIN_PARSE_VIDEO_TIMEOUT)
     def fetch(self, short_url: str, target_api=AWEME_DETAIL_API_URL) -> Tuple[str, List[VideoOption]]:
         """
         执行解析的主流程。
