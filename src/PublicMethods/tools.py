@@ -1,9 +1,10 @@
 import os
+from pathlib import Path
 
 from requests import PreparedRequest
 from shlex import quote as sh
 
-def check_file_size(file_path: str, max_size_mb: float = None, ndigits=2) -> bool | float:
+def check_file_size(file_path: str or Path, max_size_mb: float = None, ndigits=2) -> bool | float:
     """
     检查文件大小，是否超过指定限制。
     :param file_path: 文件路径

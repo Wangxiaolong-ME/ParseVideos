@@ -4,7 +4,8 @@ import time, logging, datetime
 
 logger = logging.getLogger(__name__)
 
-MAX_DIR_BYTES = 300 * 1024 * 1024          # 300 MB
+MAX_DIR_BYTES = 300 * 1024 * 1024  # 300 MB
+
 
 def _fmt_size(bytes_: int) -> str:
     for unit in ("B", "KB", "MB", "GB", "TB"):
@@ -13,42 +14,41 @@ def _fmt_size(bytes_: int) -> str:
         bytes_ /= 1024
     return f"{bytes_:.2f} PB"
 
+
 def _fmt_ctime(ts: float) -> str:
     return datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M")
 
-def purge_old_files(folder: Path, keep_hours: int = 2) -> list[str]:
-    """
-    1  先删 “最后修改时间超过 keep_hours 的普通文件”
-    2  若删完后目录仍 >300 MB，则继续从最旧文件开始删，直到 ≤300 MB
-    3  返回所有被删除的文件名列表
-    """
-    now = time.time()
-    cutoff = keep_hours * 3600
-    deleted: list[str] = []
 
-    def _delete_file(file_path: Path):
+def purge_old_files(folder: Path, max_dir_mb: float, lower_limit: float) -> float:
+    """
+    超出 max_dir_mb 时，从最旧文件开始删，直到目录大小 ≤ 阈值。
+    返回清理的空间大小（MB）。
+    """
+    if not folder.exists() or not folder.is_dir():
+        logger.warning("目录不存在或不是文件夹，跳过清理：%s", folder)
+        return 0.0
+
+    # 列出待清理文件（排除 .part 临时文件）
+    files = [f for f in folder.iterdir() if f.is_file() and f.suffix != ".part"]
+    total_mb = sum(f.stat().st_size for f in files) / 1024 ** 2
+    if total_mb <= max_dir_mb:
+        return 0.0  # 未超阈值，无需清理
+
+    # 按修改时间升序（最旧的先删）
+    files.sort(key=lambda f: f.stat().st_mtime)
+    logger.warning("目录占用 %.1f MB，开始按最旧顺序清理至 %.1f MB", total_mb, lower_limit)
+
+    freed_mb = 0.0
+    for f in files:
+        size_mb = f.stat().st_size / 1024 ** 2
         try:
-            size = _fmt_size(file_path.stat().st_size)
-            ctime = _fmt_ctime(file_path.stat().st_ctime)
-            file_path.unlink()
-            deleted.append(f"{ctime}  {file_path.name}  {size}")
-            logger.info("🗑 删除 -> %s", file_path.name)
+            f.unlink()
+            freed_mb += size_mb
+            logger.warning(" 删除旧文件 -> %s (%.2f MB)", f.name, size_mb)
         except Exception as e:
-            logger.warning("删除 %s 失败: %s", file_path, e)
+            logger.error("删除 %s 失败: %s", f, e)
+        total_mb -= size_mb
+        if total_mb <= lower_limit:
+            break
 
-    # ① 按时间阈值删
-    for f in folder.iterdir():
-        if not f.is_file() or f.suffix == ".part":
-            continue
-        if now - f.stat().st_mtime > cutoff:
-            _delete_file(f)
-
-    # ② 按容量清空
-    total = sum(f.stat().st_size for f in folder.iterdir() if f.is_file())
-    if total > MAX_DIR_BYTES:
-        logger.warning("💾 目录占用 %.1f MB，执行整目录清空", total / 1_048_576)
-        for f in folder.iterdir():
-            if f.is_file() and f.suffix != ".part":
-                _delete_file(f)
-
-    return deleted
+    return freed_mb

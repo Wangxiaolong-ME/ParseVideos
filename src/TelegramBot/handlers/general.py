@@ -1,24 +1,52 @@
 import re
 from telegram import Update
 from telegram.ext import ContextTypes
-from TelegramBot.handlers.bilibili import bili_command
+from TelegramBot.handlers.bilibili import bilibili_command
 from TelegramBot.handlers.douyin import douyin_command
 from TelegramBot.handlers.music import music_command
-from TelegramBot.config import ADMIN_ID
+from TelegramBot.handlers.unknow import unknow_command
+from TelegramBot.config import ADMIN_ID, EXCEPTION_MSG
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 # 通用 url 处理器，根据 url 自动分发到对应平台
 async def handle_general_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.effective_message.text.strip()
     platform = ""
     if re.search(r'(bilibili\.com|b23\.tv\/)', text):
-        platform = 'bilibili video'
-        await bili_command(update, context, is_command=False)
+
+        try:
+            platform = 'bilibili video'
+            await bilibili_command(update, context, is_command=False)
+        except Exception as e:
+            logger.error(f"bilibili_command 失败: {e}")
+            await update.effective_message.reply_text(EXCEPTION_MSG, quote=True)
+
     elif re.search(r'v\.douyin\.com', text):
-        platform = 'douyin video'
-        await douyin_command(update, context, is_command=False)
+        try:
+            platform = 'douyin video'
+            await douyin_command(update, context, is_command=False)
+        except Exception as e:
+            logger.error(f"douyin_command 失败: {e}")
+            await update.effective_message.reply_text(EXCEPTION_MSG, quote=True)
+
     elif re.search(r'(music\.163\.com)|(163cn\.tv)', text):
-        platform = "music.163"
-        await music_command(update, context, is_command=False)
+        try:
+            platform = "music.163"
+            await music_command(update, context, is_command=False)
+        except Exception as e:
+            logger.error(f"music_command 失败: {e}")
+            await update.effective_message.reply_text(EXCEPTION_MSG, quote=True)
+
+    else:
+        try:
+            platform = "unknow"
+            await unknow_command(update, context, is_command=False)
+        except Exception as e:
+            logger.error(f"unknow_command 失败: {e}")
+            await update.effective_message.reply_text(EXCEPTION_MSG, quote=True)
 
     # 解析简报发送给管理员
     if update.effective_user.id != ADMIN_ID:

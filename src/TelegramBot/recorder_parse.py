@@ -22,7 +22,7 @@ class UserParseResult:
     uid: int
     uname: str = None
     full_name: str = None
-    platform: str or None = None
+    platform: str = None
     url: str or None = None
     vid: str or None = None
     title: str or None = None

@@ -51,7 +51,7 @@ class BilibiliPost:
             log.debug(f"标题:{self.title}")
             log.debug(f"bvid:{self.bvid}")
             if self.parser.preview_video_url:
-                log.warning(f"该视频为VIP会员视频的预览片段")
+                log.warning(f"该视频为私人视频或VIP会员视频的预览片段")
                 self.preview_video = self.parser.preview_video_url
                 return self
 

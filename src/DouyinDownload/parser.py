@@ -16,7 +16,10 @@ from DouyinDownload.config import AWEME_DETAIL_API_URL, PLAYWRIGHT_TIMEOUT, IMAG
 from DouyinDownload.exceptions import URLExtractionError, ParseError
 from DouyinDownload.models import VideoOption, ImageOptions
 import logging
+
+from PublicMethods.functool_timeout import retry_on_timeout
 from PublicMethods.tools import prepared_to_curl
+from TelegramBot.config import DOUYIN_PARSE_IMAGE_TIMEOUT,DOUYIN_PARSE_VIDEO_TIMEOUT
 
 log = logging.getLogger(__name__)
 
@@ -82,8 +85,13 @@ class DouyinParser:
                             final_text = re.sub(r'\\{1,}"', '"', final_text)
                             final_text = re.sub(r'"{', '{', final_text)
                             final_text = re.sub(r'}"', '}', final_text)
-                            # 只匹配完整的"[xxx]"格式括号里的内容，然后替换加上不带双引号的[],从而达到去除引号的目的
-                            final_text = re.sub(r'\"\[([^\]]+)\]\"', r'[\1]', final_text)
+                            """
+                            只匹配完整的"["string"]" 或者 "[123]"格式的内容，"[玫瑰]"这种属于表情字符串，不匹配；然后替换加上不带双引号的[],从而达到去除引号的目的
+                            不应匹配："[玫瑰]"
+                            应匹配："["玫瑰"]"或者 "[123]"
+                            "["normal_720_0","normal_720_0"]"
+                            """
+                            final_text = re.sub(r'"(\[(?:"[^"]+"(?:,"[^"]+")*|\d+)\])"', r'\1', final_text)
                             final_text = final_text.replace('$undefined', 'null')
                             try:
                                 target_dict = self._try_parse_json(final_text)
@@ -288,6 +296,7 @@ class DouyinParser:
             images=images
         )
 
+    @retry_on_timeout(*DOUYIN_PARSE_IMAGE_TIMEOUT)
     def fetch_images(self, short_url):
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True, args=['--disable-images'])
@@ -312,6 +321,7 @@ class DouyinParser:
             finally:
                 browser.close()
 
+    @retry_on_timeout(*DOUYIN_PARSE_VIDEO_TIMEOUT)
     def fetch(self, short_url: str, target_api=AWEME_DETAIL_API_URL) -> Tuple[str, List[VideoOption]]:
         """
         执行解析的主流程。

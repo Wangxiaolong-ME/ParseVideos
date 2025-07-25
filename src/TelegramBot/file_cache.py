@@ -3,9 +3,13 @@
 把 <key, file_id> 存到磁盘 (JSON)，Bot 重启后仍可秒回。
 默认存到 TelegramBot/file_id_cache.json
 """
-import json, atexit
+import json
+import atexit
 import logging
 from pathlib import Path
+import tempfile
+import os
+
 logger = logging.getLogger(__name__)
 
 CACHE_FILE = Path(__file__).with_name("file_id_cache.json")
@@ -17,14 +21,36 @@ def load() -> None:
         try:
             _cache = json.loads(CACHE_FILE.read_text("utf-8"))
         except Exception:
+            logger.error("加载缓存失败，使用空缓存。", exc_info=True)
             _cache = {}
 
 def save() -> None:
+    """
+    先写入到同目录下的临时文件，写入成功后再用 os.replace 原子替换掉旧文件。
+    任何异常都不会影响到已有的 CACHE_FILE。
+    """
     try:
-        CACHE_FILE.write_text(json.dumps(_cache, ensure_ascii=False), "utf-8")
-        logger.info(f"save cache success.")
+        # 创建临时文件
+        dir_ = CACHE_FILE.parent
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=dir_, delete=False
+        ) as tf:
+            json.dump(_cache, tf, ensure_ascii=False)
+            tf.flush()
+            os.fsync(tf.fileno())
+            tmp_path = Path(tf.name)
+
+        # 原子替换
+        os.replace(str(tmp_path), str(CACHE_FILE))
+        logger.info("save cache success.")
     except Exception:
-        pass                               # 避免影响主流程
+        logger.error("保存缓存失败，保留旧文件不变。", exc_info=True)
+        # 如果临时文件还存在，尝试清理
+        try:
+            if 'tmp_path' in locals() and tmp_path.exists():
+                tmp_path.unlink()
+        except Exception:
+            pass
 
 def get(key: str) -> str | None:
     logger.debug(f"get cache:{_cache.get(key)}")

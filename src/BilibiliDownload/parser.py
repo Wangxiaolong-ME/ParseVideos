@@ -147,6 +147,10 @@ class BilibiliParser:
 
             video_info = playinfo.get('data')
             dash = video_info.get('dash')
+            if not dash:
+                durl = video_info.get('durl')   # 此标识为会员或私人视频
+                self.preview_video_url = durl[0].get('url', '')
+                return
             _parse(dash, video_info)
 
         def _bangumi_fetch():
@@ -186,7 +190,9 @@ class BilibiliParser:
                 _parse(dash, video_info)
 
         def _parse(dash, video_info, is_preview=False):
-            duration = dash.get('duration', 0)  # 视频时长
+            duration = 0
+            if dash:
+                duration = dash.get('duration', 0)  # 视频时长
             if duration == 0:
                 log.error(f"duration 获取为0，dash数据：{dash}")
 

@@ -44,7 +44,7 @@ def main() -> None:
     application.add_handler(CommandHandler("start", _start))
     application.add_handler(CommandHandler("status", status.handle_status_command))
 
-    application.add_handler(CommandHandler("bilibili", bilibili.bili_command))
+    application.add_handler(CommandHandler("bilibili", bilibili.bilibili_command))
     application.add_handler(CommandHandler("douyin", douyin.douyin_command))
     application.add_handler(CommandHandler("music", music.music_command))
 

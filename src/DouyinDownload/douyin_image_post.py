@@ -53,7 +53,7 @@ class DouyinImagePost:
         获取图片作品详情，填充 aweme_detail 属性。
         Fetches image post details, populating the aweme_detail attribute.
         """
-        log.debug("正在获取图片作品详情 (Fetching image post details)...")
+        log.info("正在获取图片作品详情 (Fetching image post details)...")
         if not self.aweme_detail:  # 避免重复获取
             self.aweme_detail = self.parser.fetch_images(self.short_url)
             if not self.aweme_detail:

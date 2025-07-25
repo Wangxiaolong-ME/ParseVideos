@@ -8,6 +8,9 @@ from telegram.constants import ChatAction
 
 import logging
 
+from PublicMethods.functool_timeout import retry_on_timeout_async
+from TelegramBot.config import SEND_TEXT_TIMEOUT,SEND_VIDEO_TIMEOUT,SEND_MEDIA_GROUP_TIMEOUT
+
 log = logging.getLogger(__name__)
 
 
@@ -86,6 +89,7 @@ class MsgSender:
     async def find(self) -> None:
         await self.action(ChatAction.FIND_LOCATION)
 
+    @retry_on_timeout_async(*SEND_TEXT_TIMEOUT)
     async def send(
             self,
             text: str,
@@ -103,6 +107,7 @@ class MsgSender:
         )
         return msg
 
+    @retry_on_timeout_async(*SEND_MEDIA_GROUP_TIMEOUT)
     async def send_document(
             self,
             document: Union[str, Path, IO, InputFile],
@@ -150,6 +155,7 @@ class MsgSender:
         log.debug("reply_document 耗时 %.2f s", time.perf_counter() - start)
         return msg
 
+    @retry_on_timeout_async(*SEND_MEDIA_GROUP_TIMEOUT)
     async def send_media_group(
             self,
             media: List[InputMediaPhoto],  # 接收 InputMediaPhoto 对象的列表
@@ -169,12 +175,6 @@ class MsgSender:
         if not media:
             log.warning("media_group media 列表为空，不执行发送。")
             return []
-
-        if progress_msg:
-            try:
-                await progress_msg.edit_text(f"图片上传中... (共 {len(media)} 张)")
-            except Exception as e:
-                log.warning(f"无法编辑进度消息: {e}")
 
         try:
             # 直接使用 self.bot 和 self.chat_id
@@ -204,6 +204,7 @@ class MsgSender:
                     log.warning(f"无法编辑失败消息: {edit_e}")
             raise  # 重新抛出异常，让上层处理
 
+    @retry_on_timeout_async(*SEND_VIDEO_TIMEOUT)
     async def send_video(
             self,
             video: Union[str, Path, IO, InputFile],
