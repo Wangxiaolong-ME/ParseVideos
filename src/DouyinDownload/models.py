@@ -54,5 +54,7 @@ class Image:
     width: int
     height: int
     url: str
-    local_path: str
+    local_path: str = None
     aweme_id: Optional[str] = None
+    duration: int = None
+    file_type: str = None

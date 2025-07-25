@@ -234,6 +234,7 @@ async def bili_command(
             return await sender.send("示例：/bili https://www.bilibili.com/video/BV1xx411c7mD", reply=False)
 
         url = context.args[0] if is_command else update.effective_message.text
+        record.input_content = url
 
         loop = asyncio.get_running_loop()
         bili = await loop.run_in_executor(

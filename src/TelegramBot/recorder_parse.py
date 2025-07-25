@@ -33,6 +33,7 @@ class UserParseResult:
     fid: dict[str, str] = field(default_factory=dict)  # 缓存ID信息
     to_fid: bool = False  # 现有字段，虽然在新逻辑中不再直接用于判断，但保留以保持兼容性
     start_time: float = None
+    input_content: str = None
 
 
 @dataclass
@@ -45,6 +46,7 @@ class UserRecordEntry:
     uname: str = None  # 用户名
     full_name: str = None  # 用户全名
     platform: str or None = None  # 平台名称
+    input_content: str = None
     title: str or None = None  # 视频标题
     vid: str or None = None  # 视频ID
     url: str or None = None  # 原始请求URL
@@ -118,6 +120,7 @@ def _record_user_parse(info: UserParseResult):
             "uid": info.uid,  # 根据之前的逻辑，UID 是每个记录的基础标识，保留
             "uname": info.uname,
             "full_name": info.full_name,
+            "input_content": info.input_content,
             "title": info.title,
             "platform": info.platform,
             "cache_info": info.fid,
@@ -133,6 +136,7 @@ def _record_user_parse(info: UserParseResult):
             "uname": info.uname,
             "full_name": info.full_name,
             "platform": info.platform,
+            "input_content": info.input_content,
             "url": info.url,
             "vid": info.vid,
             "title": info.title,
@@ -152,7 +156,9 @@ def _record_user_parse(info: UserParseResult):
     if not is_cached_hit:  # 如果是新视频解析 (即 info.fid 为空)
         # 假设我们不希望重复记录同一个 vid 的新解析成功事件
         # 您可以根据实际需求调整这里的去重策略
-        if any(rec.get("vid") == info.vid and not rec.get("is_cached_hit") for rec in current_data[user_key]["records"]):
+        # 只有当 info.vid 不为 None 且存在重复时才跳过
+        if info.vid is not None and any(rec.get("vid") == info.vid and not rec.get("is_cached_hit") for rec in
+                                        current_data[user_key]["records"]):
             log.warning(f"检测到重复的新视频记录 (VID: {info.vid})，跳过追加。")
             return  # 避免重复记录新视频
 

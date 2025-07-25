@@ -114,7 +114,7 @@ class DouyinPost:
                 return "video"
             elif "/note/" in final_url:
                 log.debug(f"指向内容为图集")
-                return "images"
+                return "image"
             else:
                 log.debug(f"指向内容未知")
                 return "unknown"

@@ -147,7 +147,7 @@ async def music_command(
                 reply=False,
             )
         target = context.args[0] if is_command else update.effective_message.text
-
+        record.input_content = target
         await sender.react("👀")
         await sender.typing()  # 正在输入状态
 

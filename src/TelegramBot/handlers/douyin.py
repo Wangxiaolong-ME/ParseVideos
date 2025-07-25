@@ -7,9 +7,9 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Final, Any, List
+from typing import Final, Any, List, Union
 
-from telegram import Update, Message, InputMediaPhoto
+from telegram import Update, Message, InputMediaPhoto, InputMediaVideo
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
@@ -124,7 +124,7 @@ def _download_or_hit(url: str):
         logger.info("下载完成 -> %s", local_path.name)
         dy.path = local_path
         return dy
-    elif content_type == 'images':
+    elif content_type == 'image':
         image_post = DouyinImagePost(url)
         image_post.fetch_details()
 
@@ -180,57 +180,90 @@ async def _send_with_cache(sender: MsgSender, dy: DY, progress_msg: Message) -> 
 
 async def _send_images_with_cache(sender: MsgSender, images: List[Image], title: str, progress_msg: Message,
                                   rep_msg_id) -> List[Message]:
-    """专门用于发送图片集"""
-    # Telegram media group 最多支持 10 张图片
+    """
+    专门用于发送图片集或视频集（现在支持混合）。
+    """
+    # Telegram media group 最多支持 10 张图片/视频
     MAX_MEDIA_GROUP_SIZE = 10
 
     sent_messages: List[Message] = []
 
-    # 准备 InputMediaPhoto 列表
-    media_group_items: List[InputMediaPhoto] = []
+    # 准备 InputMediaPhoto 或 InputMediaVideo 列表
+    # 类型提示更新以包含 InputMediaVideo
+    media_group_items: List[Union[InputMediaPhoto, InputMediaVideo]] = []
     try:
-        for i, img in enumerate(images):
-            if not img.local_path or not Path(img.local_path).exists():
-                logger.warning(f"图片文件 {img.local_path} 不存在，跳过发送。")
+        for i, media_item in enumerate(images): # 将 img 重命名为 media_item 以更通用
+            if not media_item.local_path or not Path(media_item.local_path).exists():
+                logger.warning(f"媒体文件 {media_item.local_path} 不存在，跳过发送。")
                 continue
 
-            caption_text = f"{title}" if i == 0 else ""  # 只有第一张带标题
+            caption_text = f"{title}" if i == 0 else ""  # 只有第一个媒体带标题
 
-            media_group_items.append(
-                InputMediaPhoto(open(img.local_path, 'rb'), caption=caption_text,
-                                parse_mode=ParseMode.HTML if i == 0 else None)
-            )
+            # 根据文件类型创建不同的 InputMedia 对象
+            with open(media_item.local_path, 'rb') as f: # 打开文件流
+                if media_item.file_type == "video":
+                    media_group_items.append(
+                        InputMediaVideo(
+                            media=f, # 传入文件流
+                            caption=caption_text,
+                            parse_mode=ParseMode.HTML if i == 0 else None,
+                            width=media_item.width,    # 传入视频宽度
+                            height=media_item.height,  # 传入视频高度
+                            duration=media_item.duration # 传入视频时长
+                        )
+                    )
+                    logger.debug(f"准备发送视频: {media_item.local_path}")
+                else: # 默认为图片类型
+                    media_group_items.append(
+                        InputMediaPhoto(
+                            media=f, # 传入文件流
+                            caption=caption_text,
+                            parse_mode=ParseMode.HTML if i == 0 else None
+                        )
+                    )
+                    logger.debug(f"准备发送图片: {media_item.local_path}")
 
-            # 达到最大数量或所有图片都已添加，发送媒体组
+            # 达到最大数量或所有媒体都已添加，发送媒体组
+            # 这里的条件也调整为 `media_group_items` 不为空以避免空列表发送
             if len(media_group_items) == MAX_MEDIA_GROUP_SIZE or (i == len(images) - 1 and media_group_items):
                 try:
                     # Telegram send_media_group 默认没有 progress_msg，此处可以考虑自定义实现或去掉
                     sent_msgs = await sender.send_media_group(media=media_group_items, reply_to_message_id=rep_msg_id)
                     sent_messages.extend(sent_msgs)
                     media_group_items = []  # 清空列表，准备下一批
-                    record.success = True
+                    record.success = True # 标记发送成功，这里应根据实际业务逻辑判断是否完全成功
 
-                    # 如果图片很多，分批发送后，进度消息可能需要更新
+                    # 如果媒体很多，分批发送后，进度消息可能需要更新
                     if len(images) > MAX_MEDIA_GROUP_SIZE and i < len(images) - 1:
-                        await progress_msg.edit_text(f"图片下载和发送中... 已发送 {len(sent_messages)}/{len(images)} 张")
+                        # 动态显示已发送的媒体数量和总数
+                        current_sent_count = len(sent_messages)
+                        total_media_count = len(images)
+                        await progress_msg.edit_text(f"媒体下载和发送中... 已发送 {current_sent_count}/{total_media_count} 项")
 
                 except BadRequest as e:
-                    logger.error(f"发送图片组失败: {e}")
-                    if "too much media in album" in str(e):  # 理论上不会发生，因为我们已经分批
-                        logger.error("Too much media in album, this should not happen with batching.")
+                    logger.error(f"发送媒体组失败: {e}")
+                    if "too much media in album" in str(e):
+                        logger.error("媒体组中媒体过多，理论上分批处理不应发生此错误 (Too much media in album, this should not happen with batching).")
                     elif "MEDIA_EMPTY" in str(e):
-                        logger.warning("Media group is empty, skipping send.")
+                        logger.warning("媒体组为空，跳过发送 (Media group is empty, skipping send).")
                     else:
+                        # 抛出其他 BadRequest 错误，以便外部捕获
                         raise
                 except Exception as e:
-                    logger.error(f"发送图片组时发生未知错误: {e}")
+                    logger.error(f"发送媒体组时发生未知错误: {e}")
+                    # 抛出其他通用错误
                     raise
     except Exception as e:
-        logger.error(f"发送图片组时发生未知错误: {e}")
+        logger.error(f"发送媒体组时发生未知错误: {e}")
+        # 抛出异常以便调用者处理
+        raise
     finally:
+        # 无论成功失败，尝试删除进度消息
         await progress_msg.delete()
+
     if not sent_messages:
-        raise Exception("未能成功发送任何图片。")
+        # 如果最终没有任何消息成功发送，则抛出异常
+        raise Exception("未能成功发送任何媒体。")
 
     return sent_messages
 
@@ -274,7 +307,7 @@ async def douyin_command(
             return await sender.send("示例：/dy https://v.douyin.com/xxxxx", reply=False)
 
         url = context.args[0] if is_command else update.effective_message.text
-
+        record.input_content = url
         loop = asyncio.get_running_loop()
         dy = await loop.run_in_executor(
             executor, functools.partial(_download_or_hit, url)
@@ -302,7 +335,7 @@ async def douyin_command(
             msg = await _send_with_cache(sender, dy, progress_msg)
             record.success = True
             return msg
-        elif dy.content_type == 'images':
+        elif dy.content_type == 'image':
             await _send_images_with_cache(sender, dy.images, dy.title, progress_msg, rep_msg_id=msg_id)
             record.success = True
             return

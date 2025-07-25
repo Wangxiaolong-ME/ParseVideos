@@ -82,15 +82,14 @@ class DouyinParser:
                             final_text = re.sub(r'\\{1,}"', '"', final_text)
                             final_text = re.sub(r'"{', '{', final_text)
                             final_text = re.sub(r'}"', '}', final_text)
+                            # 只匹配完整的"[xxx]"格式括号里的内容，然后替换加上不带双引号的[],从而达到去除引号的目的
+                            final_text = re.sub(r'\"\[([^\]]+)\]\"', r'[\1]', final_text)
                             final_text = final_text.replace('$undefined', 'null')
-                            # final_text = final_text.replace(r'\\"', '"')
-                            log.debug(f"正则拿到json_str:{final_text}")
                             try:
-                                # j = json.loads(final_text)
                                 target_dict = self._try_parse_json(final_text)
                                 return target_dict
                             except Exception as e:
-                                log.error(f"格式化JSON错误:{e}")
+                                log.error(f"格式化JSON错误:{e},处理前json_str:{final_text}")
                                 return None
         log.error("未匹配到标签内的目标内容")
         return None
@@ -299,7 +298,7 @@ class DouyinParser:
                 cookies = self._get_cookies(page, IMAGES_NEED_COOKIES)
                 resp = requests.get(short_url, cookies=cookies, headers=DOWNLOAD_HEADERS)
                 curl = prepared_to_curl(resp.request)
-                print(curl)
+                log.debug(curl)
                 html = resp.text
                 html = html.replace('\n', '')
                 soup = BeautifulSoup(html, 'html.parser')
@@ -308,7 +307,6 @@ class DouyinParser:
                 note_detail = r'__pace_f.push'
 
                 aweme_json = self._search_scripts_from_scripts(script_tags, note_detail, f'(awemeId|liveReason)')
-                print(aweme_json)
                 return self._parse_images_options(aweme_json)
 
             finally:

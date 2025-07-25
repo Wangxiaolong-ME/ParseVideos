@@ -7,6 +7,8 @@ import requests
 from queue import Queue
 import logging
 
+from PublicMethods.tools import prepared_to_curl
+
 logger = logging.getLogger(__name__)
 
 
@@ -375,7 +377,7 @@ class Downloader:
             timeout: int = 60,
             max_redirects: int = 5,
             multi_session: bool = False,  # 默认开启多 Session 策略，更利于并发
-            session_pool_size: Optional[int] = 0,  # 默认0，表示按线程数创建Session或根据multi_session判断
+            session_pool_size: Optional[int] = 1,  # 默认1
     ) -> str:
         """
         下载文件，先跟踪重定向，再根据文件大小和配置决定单/多线程下载。
@@ -404,6 +406,9 @@ class Downloader:
         logger.debug(
             f"下载参数: headers={headers}, timeout={timeout}, max_redirects={max_redirects}, multi_session={multi_session}, session_pool_size={session_pool_size}")
         download_start_time = time.perf_counter()  # 记录开始时间
+        if max_redirects == 0:
+            return self._single_download(url, path, headers, timeout)
+
         # 1. 探测最终 URL 与文件大小
         try:
             final_url = self._get_final_url(url, headers, timeout, max_redirects)
@@ -640,6 +645,7 @@ class Downloader:
 
         try:
             with self.default_session.get(url, headers=headers, stream=True, timeout=timeout) as r:
+                curl = prepared_to_curl(r.request)
                 r.raise_for_status()  # 检查 HTTP 状态码
 
                 # 确保每次下载前清理旧的临时文件
@@ -668,14 +674,14 @@ class Downloader:
 
             return path
         except requests.exceptions.RequestException as e:
-            logger.error(f"单线程下载请求失败: {e}. URL: {url}", exc_info=True)
+            logger.error(f"单线程下载请求失败: {e}. cURL: {curl}", exc_info=True)
             raise DownloadError(f"单线程下载失败: {e}") from e
         except IOError as e:
             logger.critical(f"单线程下载文件写入失败: {e}. 文件: {tmp_path}", exc_info=True)
             raise DownloadError(f"单线程下载写入失败: {e}") from e
         except Exception as e:
             logger.critical(f"单线程下载过程中发生未知错误: {e}", exc_info=True)
-            raise DownloadError(f"单线程下载未知错误: {e}") from e
+            raise DownloadError(f"单线程下载未知错误: {e} cURL: {curl}" ) from e
         finally:
             # 无论成功失败，尝试清理临时文件
             self._cleanup_temp_files([tmp_path])
