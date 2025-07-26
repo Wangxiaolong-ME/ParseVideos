@@ -75,7 +75,7 @@ async def generic_command_handler(
 
     # 速率和任务限制 (通用)
     if not rate_limiter.allow(uid):
-        await sender.send("操作过于频繁，请稍后再试")
+        # await sender.send("操作过于频繁，请稍后再试")
         return
     if not await task_manager.acquire(uid):
         await sender.send("您已有任务正在进行，请稍候完成后再发起新任务")

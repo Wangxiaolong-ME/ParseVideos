@@ -18,7 +18,7 @@ BASE_DIR = Path.cwd()
 PROXY_SWITCH = 'Win' in os_name  # 代理开关
 
 # —————————— TelegramBot配置 ——————————
-MIN_MSG_INTERVAL = 2.0  # 2 秒只能发一次，速率限制
+MIN_MSG_INTERVAL = 3.0  # 2 秒只能发一次，速率限制
 TELEGRAM_TOKEN_ENV = os.getenv('TELEGRAM_TOKEN', '')
 log.debug(f"TELEGRAM_TOKEN={TELEGRAM_TOKEN_ENV[:10]}*********")
 ADMIN_ID = 6040522700  # 管理员 TG ID
