@@ -62,6 +62,8 @@ async def generic_command_handler(
             clear = [200, 50]
         elif platform_name == 'bilibili':
             clear = [200, 50]
+        elif platform_name == 'xhs':
+            clear = [200, 50]
         elif platform_name == 'music':
             clear = [100, 20]
 
@@ -71,7 +73,7 @@ async def generic_command_handler(
                 ADMIN_ID,
                 text=f"已清除目录下 {save_dir}\n缓存文件：{deleted_size:.2f} MB",
                 disable_web_page_preview=True,
-        )
+            )
 
     # 速率和任务限制 (通用)
     if not rate_limiter.allow(uid):
@@ -113,7 +115,7 @@ async def generic_command_handler(
             if file_id := cache_get(vid):
                 logger.info(f"命中 file_id 缓存 ({vid})")
                 try:
-                    await _send_by_file_id(sender, file_id, title)
+                    await _send_by_file_id(sender, file_id, title, update.effective_message.id)
                     record.fid[vid] = file_id
                     record.to_fid = True
                     record.success = True
@@ -125,7 +127,7 @@ async def generic_command_handler(
                     progress_msg = await sender.send("缓存已失效，正在重新上传...")
 
         # ---- 3. 执行核心解析 (I/O密集，放入线程池) ----
-        loop = asyncio.get_running_loop()
+        # loop = asyncio.get_running_loop()
         # parser_instance = parser_class(target_url, save_dir)
 
         logger.info(f"functools run parse task 开始解析")
@@ -161,12 +163,22 @@ async def generic_command_handler(
 
         # 缓存新的 file_id
         if msg and parse_result.vid:
+            logging.debug(f"缓存fid...")
             # 对于图集，Telegram返回一个消息列表
             # 目前只缓存单视频/音频的file_id
             if parse_result.content_type in ['video', 'audio']:
                 if file_id := _extract_file_id(msg):
                     cache_put(parse_result.vid, file_id)
                     logger.debug(f"记录新的 file_id 缓存 -> {parse_result.vid}")
+            # 图集消息：Telegram 返回的是消息列表
+            elif parse_result.content_type == 'image_gallery':
+                logging.debug(f"写入图集fid...")
+                if isinstance(msg, list):
+                    album_file_ids = _build_image_gallery_cache_fid(msg)
+                    # 使用图集的唯一 ID 缓存整个 file_id 列表，方便后续取用
+                    if album_file_ids:
+                        cache_put(parse_result.vid, album_file_ids)
+                        logger.debug(f"记录新的图集 file_id 列表 -> {parse_result.vid}: {album_file_ids}")
 
         record.success = True
 
@@ -183,6 +195,21 @@ async def generic_command_handler(
         task_manager.release(uid)
         _record_user_parse(record)  # 记录日志
         logger.info(f"{platform_name}_command finished.")
+
+
+# 生成图集的缓存ID列表,视频前缀VIDEO,图片前缀IMAGE
+def _build_image_gallery_cache_fid(msg):
+    album_file_ids = []
+    # 遍历图集中的每条消息
+    for index, m in enumerate(msg):
+        fid = _extract_file_id(m)  # 提取每条消息的 file_id
+        if fid:
+            # 根据 file_type 判断是视频还是图片，添加相应的前缀
+            if m.video:  # 如果是视频类型
+                album_file_ids.append(f"VIDEO{fid}")
+            else:  # 如果是图片类型
+                album_file_ids.append(f"IMAGE{fid}")
+    return album_file_ids
 
 
 def _sync_record_with_result(record: UserParseResult, result: ParseResult):
@@ -202,13 +229,42 @@ def _extract_file_id(msg: Message) -> str | None:
     if msg.video: return msg.video.file_id
     if msg.audio: return msg.audio.file_id
     if msg.document: return msg.document.file_id
+    if msg.photo: return msg.photo[-1].file_id  # tuple中多张尺寸图片,依次由小到大升序,取最大的
     return None
 
 
-async def _send_by_file_id(sender: MsgSender, file_id: str, caption: str):
+async def _send_by_file_id(sender: MsgSender, file_id: str or list, caption: str, reply_id: int = None):
     """使用缓存的file_id发送 (此处可以扩展支持不同类型)"""
-    # 简单的实现，假设所有缓存都是 document 类型，你可以根据需要扩展
-    return await sender.send_document(file_id, caption=caption)
+    # 如果是单个 file_id，直接发送文档
+    if isinstance(file_id, str):
+        return await sender.send_document(file_id, caption=caption)
+
+        # 如果是图集，遍历每个 file_id 发送
+    elif isinstance(file_id, list):
+        media_group_items = []
+        for file in file_id:
+            # 去掉前缀并添加到 media_group_items 中
+            if file.startswith('VIDEO'):
+                file = file[len('VIDEO'):]  # 去掉 'VIDEO_' 前缀
+                media_group_items.append(InputMediaVideo(media=file, caption=caption))
+            elif file.startswith('IMAGE'):
+                file = file[len('IMAGE'):]  # 去掉 'IMAGE_' 前缀
+                media_group_items.append(InputMediaPhoto(media=file, caption=caption))
+
+        # 如果媒体组的数量超过10个，分批发送
+        media_group_batches = [media_group_items[i:i + 10] for i in range(0, len(media_group_items), 10)]
+
+        all_sent_messages = []
+        for idx, batch in enumerate(media_group_batches):
+            parms = {}
+            if idx == 0:    # 只有第一组发送时回复原消息
+                parms["reply_to_message_id"] = reply_id
+            sent_messages = await sender.send_media_group(media=batch, **parms)
+            all_sent_messages.extend(sent_messages)
+
+        return all_sent_messages  # 返回所有批次的消息
+    else:
+        raise ValueError("Invalid file_id type")
 
 
 # 特殊处理片段
@@ -217,6 +273,7 @@ def _handle_special_field(result: ParseResult):
     if result.bili_preview_video:
         logger.debug(f"{BILI_PREVIEW_VIDEO_TITLE}, {result.original_url}")
         result.title = f"{result.title}\n{BILI_PREVIEW_VIDEO_TITLE}"
+
 
 async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg: Message, reply_to_id: int):
     """根据内容类型上传并发送文件"""

@@ -56,6 +56,12 @@ BILI_PREVIEW_VIDEO_TITLE = "⚠️注意：该视频为私人视频或会员视�
 
 # —————————— B站配置 ——————————
 
+# —————————— 小红书 ——————————
+XIAOHONGSHU_SAVE_DIR = BASE_DIR / "xhs_downloads"
+XIAOHONGSHU_COOKIE = {'web_session': os.getenv('WEB_SESSION', '')}
+log.debug(f"web_session={XIAOHONGSHU_COOKIE['web_session'][:10]}*********")
+# —————————— 小红书 ——————————
+
 
 # —————————— 网易云音乐配置 ——————————
 MUSIC_SAVE_DIR = BASE_DIR / "music_downloads"
@@ -64,7 +70,7 @@ MUSIC_SAVE_DIR = BASE_DIR / "music_downloads"
 
 # —————————— 通用配置 ——————————
 MAX_THREAD_WORKERS = 5  # download 线程池大小
-EXCEPTION_MSG = "出了点错误! 请稍候再次尝试\n或将错误链接发送给 @axlxlw"
+EXCEPTION_MSG = "请检查链接或作品为私密状态.\n若有其他错误可反馈 @axlxlw"
 EXCEPTION_MSG_TO_LOG = ""
 # —————————— 通用配置 ——————————
 

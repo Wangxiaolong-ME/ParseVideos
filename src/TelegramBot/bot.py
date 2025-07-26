@@ -7,7 +7,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 from TelegramBot.config import TELEGRAM_TOKEN_ENV, ADMIN_ID, MIN_MSG_INTERVAL
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.task_manager import TaskManager
-from TelegramBot.handlers import bilibili, douyin, music, general, status, notify  # noqa: F401  (触发模块导入)
+from TelegramBot.handlers import bilibili, douyin, music, general, status, notify, xiaohongshu
 
 
 def _inject_singletons(app):
@@ -46,9 +46,11 @@ def main() -> None:
     application.add_handler(CommandHandler("notify", notify.handle_notify_command))
     application.add_handler(CommandHandler("status", status.handle_status_command))
 
+    # 暂时以下这些命令未开放使用,先放着看后续是否有需求
     application.add_handler(CommandHandler("bilibili", bilibili.bilibili_command))
     application.add_handler(CommandHandler("douyin", douyin.douyin_command))
     application.add_handler(CommandHandler("music", music.music_command))
+    application.add_handler(CommandHandler("xhs", xiaohongshu.xhs_command))
 
     application.add_handler(MessageHandler(filters.ALL, general.handle_general_url))
 

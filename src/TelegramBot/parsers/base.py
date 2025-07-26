@@ -4,7 +4,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Union, Literal
+from typing import List, Union, Literal, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,7 @@ class ParseResult:
     # ---- 特殊情况字段 ----
     text_message: str | None = None  # 如果需要直接发送文本消息（例如 >50MB 的链接）
     bili_preview_video: bool | None = None  # B站私人视频或会员视频
+    download_url_list: List[str] = field(default_factory=list)   # 多个下载链接列表
 
     # ---- 异常信息 ----
     error_message: str | None = None

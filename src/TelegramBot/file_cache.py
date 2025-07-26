@@ -52,11 +52,11 @@ def save() -> None:
         except Exception:
             pass
 
-def get(key: str) -> str | None:
+def get(key: str) -> str or list | None:
     logger.debug(f"get cache:{_cache.get(key)}")
     return _cache.get(key)
 
-def put(key: str, file_id: str) -> None:
+def put(key: str, file_id: str or list) -> None:
     if not file_id:
         logger.error("cache file_id = None! skip.")
         return

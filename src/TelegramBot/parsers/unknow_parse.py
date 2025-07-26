@@ -11,11 +11,11 @@ logger = logging.getLogger(__name__)
 
 
 class UnknowParser(BaseParser):
-    """解析网易云音乐 URL/ID，返回 `ParseResult`。"""
+    """未知占位 返回 `ParseResult`。"""
 
     def __init__(self, target: str, save_dir: Path | None = None):
         super().__init__(target, save_dir or None)
         self.target = target  # 兼容旧变量名
 
     def parse(self) -> ParseResult:
-        self.target
+        pass

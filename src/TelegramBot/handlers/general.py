@@ -1,10 +1,7 @@
 import re
 from telegram import Update
 from telegram.ext import ContextTypes
-from TelegramBot.handlers.bilibili import bilibili_command
-from TelegramBot.handlers.douyin import douyin_command
-from TelegramBot.handlers.music import music_command
-from TelegramBot.handlers.unknow import unknow_command
+from TelegramBot.handlers import bilibili, douyin, music, xiaohongshu, unknow
 from TelegramBot.config import ADMIN_ID, EXCEPTION_MSG
 import logging
 
@@ -16,10 +13,9 @@ async def handle_general_url(update: Update, context: ContextTypes.DEFAULT_TYPE)
     text = update.effective_message.text.strip()
     platform = ""
     if re.search(r'(bilibili\.com|b23\.tv\/)', text):
-
         try:
             platform = 'bilibili video'
-            await bilibili_command(update, context, is_command=False)
+            await bilibili.bilibili_command(update, context, is_command=False)
         except Exception as e:
             logger.error(f"bilibili_command 失败: {e}")
             await update.effective_message.reply_text(EXCEPTION_MSG, quote=True)
@@ -27,7 +23,7 @@ async def handle_general_url(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif re.search(r'v\.douyin\.com', text):
         try:
             platform = 'douyin video'
-            await douyin_command(update, context, is_command=False)
+            await douyin.douyin_command(update, context, is_command=False)
         except Exception as e:
             logger.error(f"douyin_command 失败: {e}")
             await update.effective_message.reply_text(EXCEPTION_MSG, quote=True)
@@ -35,15 +31,23 @@ async def handle_general_url(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif re.search(r'(music\.163\.com)|(163cn\.tv)', text):
         try:
             platform = "music.163"
-            await music_command(update, context, is_command=False)
+            await music.music_command(update, context, is_command=False)
         except Exception as e:
             logger.error(f"music_command 失败: {e}")
+            await update.effective_message.reply_text(EXCEPTION_MSG, quote=True)
+
+    elif re.search(r'xiaohongshu\.com/[\w\S]+', text):
+        try:
+            platform = "xhs"
+            await xiaohongshu.xhs_command(update, context, is_command=False)
+        except Exception as e:
+            logger.error(f"xhs_command 失败: {e}")
             await update.effective_message.reply_text(EXCEPTION_MSG, quote=True)
 
     else:
         try:
             platform = "unknow"
-            await unknow_command(update, context, is_command=False)
+            await unknow.unknow_command(update, context, is_command=False)
         except Exception as e:
             logger.error(f"unknow_command 失败: {e}")
             await update.effective_message.reply_text(EXCEPTION_MSG, quote=True)

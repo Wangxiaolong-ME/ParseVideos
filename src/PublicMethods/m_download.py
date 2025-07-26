@@ -61,8 +61,8 @@ class ProgressMonitor(threading.Thread):
             progress_percent = (current_downloaded / self.total * 100) if self.total > 0 else 0
 
             # 使用更丰富的进度显示格式
-            sys.stdout.write(f"\r下载进度: {dl_str}/{total_str} ({progress_percent:.2f}%)，平均速度: {speed_str}")
-            sys.stdout.flush()
+            # sys.stdout.write(f"\r下载进度: {dl_str}/{total_str} ({progress_percent:.2f}%)，平均速度: {speed_str}")
+            # sys.stdout.flush()
             time.sleep(self.interval)
 
         # 线程停止后，最后一次刷新到 100% 并显示最终速度
@@ -608,7 +608,8 @@ class Downloader:
             self._cleanup_temp_files([final_merged_tmp_path])
             raise DownloadError(f"合并分片未知错误: {e}") from e
 
-    def _single_download(self, url: str, path: str, headers: Dict[str, str], timeout: int) -> str:
+    def _single_download(self, url: str, path: str, headers: Dict[str, str], timeout: int, skip_head=False,
+                         retry=3) -> str:
         """
         执行单线程文件下载，包含进度显示。
 
@@ -632,61 +633,67 @@ class Downloader:
 
         # 再次 HEAD 请求获取文件大小，确保准确性
         total_size = 0
-        try:
-            resp_head = self.default_session.head(url, headers=headers, timeout=timeout)
-            resp_head.raise_for_status()
-            total_size = int(resp_head.headers.get('Content-Length', 0))
-            logger.info(f"单线程下载开始。URL: {url}, 总大小: {Downloader._sizeof_fmt_static(total_size)}")
-        except requests.exceptions.RequestException as e:
-            logger.warning(f"单线程下载获取文件大小失败，可能无法显示总进度: {e}")
-            # 即使获取不到总大小，也尝试继续下载
+        if not skip_head:
+            try:
+                resp_head = self.default_session.head(url, headers=headers, timeout=timeout)
+                resp_head.raise_for_status()
+                total_size = int(resp_head.headers.get('Content-Length', 0))
+                logger.info(f"单线程下载开始。URL: {url}, 总大小: {Downloader._sizeof_fmt_static(total_size)}")
+            except requests.exceptions.RequestException as e:
+                logger.warning(f"单线程下载获取文件大小失败，可能无法显示总进度: {e}")
+                # 即使获取不到总大小，也尝试继续下载
 
-        monitor = ProgressMonitor(total_size, downloaded_counter, lock)
-        monitor.start()
-        logger.debug("单线程下载的进度监控线程已启动。")
+        # monitor = ProgressMonitor(total_size, downloaded_counter, lock)
+        # monitor.start()
+        # logger.debug("单线程下载的进度监控线程已启动。")
 
-        try:
-            with self.default_session.get(url, headers=headers, stream=True, timeout=timeout) as r:
-                curl = prepared_to_curl(r.request)
-                r.raise_for_status()  # 检查 HTTP 状态码
+        for _ in range(0, retry):
+            try:
+                with self.default_session.get(url, headers=headers, stream=True, timeout=timeout) as r:
+                    curl = prepared_to_curl(r.request)
+                    r.raise_for_status()  # 检查 HTTP 状态码
 
-                # 确保每次下载前清理旧的临时文件
-                if os.path.exists(tmp_path):
-                    logger.warning(f"单线程临时文件 {tmp_path} 已存在，将覆盖。")
-                    os.remove(tmp_path)
+                    # 确保每次下载前清理旧的临时文件
+                    if os.path.exists(tmp_path):
+                        logger.warning(f"单线程临时文件 {tmp_path} 已存在，将覆盖。")
+                        os.remove(tmp_path)
 
-                with open(tmp_path, 'wb') as f:
-                    for chunk in r.iter_content(8192):
-                        if not chunk:
-                            continue
-                        f.write(chunk)
-                        with lock:  # 更新共享计数器
-                            downloaded_counter[0] += len(chunk)
+                    with open(tmp_path, 'wb') as f:
+                        for chunk in r.iter_content(8192):
+                            if not chunk:
+                                continue
+                            f.write(chunk)
+                            with lock:  # 更新共享计数器
+                                downloaded_counter[0] += len(chunk)
 
-            monitor.stop()  # 停止进度监控
-            monitor.join(timeout=5)
-            if monitor.is_alive():
-                logger.warning("单线程下载的进度监控器未能在规定时间内停止。")
+                    # monitor.stop()  # 停止进度监控
+                    # monitor.join(timeout=5)
+                    # if monitor.is_alive():
+                    #     logger.warning("单线程下载的进度监控器未能在规定时间内停止。")
 
-            # 最终文件替换
-            os.replace(tmp_path, path)
-            logger.info(f"单线程下载成功到: {path}")
-            logger.info(
-                f"单线程下载成功到: {path} (总耗时: {time.perf_counter() - single_download_start_time:.4f}秒)")  # <--- 在这里增加结束打点
+                    # 最终文件替换
+                    os.replace(tmp_path, path)
+                    logger.info(f"单线程下载成功到: {path}")
+                    logger.info(
+                        f"单线程下载成功到: {path} (总耗时: {time.perf_counter() - single_download_start_time:.4f}秒)")  # <--- 在这里增加结束打点
 
-            return path
-        except requests.exceptions.RequestException as e:
-            logger.error(f"单线程下载请求失败: {e}. cURL: {curl}", exc_info=True)
-            raise DownloadError(f"单线程下载失败: {e}") from e
-        except IOError as e:
-            logger.critical(f"单线程下载文件写入失败: {e}. 文件: {tmp_path}", exc_info=True)
-            raise DownloadError(f"单线程下载写入失败: {e}") from e
-        except Exception as e:
-            logger.critical(f"单线程下载过程中发生未知错误: {e}", exc_info=True)
-            raise DownloadError(f"单线程下载未知错误: {e} cURL: {curl}" ) from e
-        finally:
-            # 无论成功失败，尝试清理临时文件
-            self._cleanup_temp_files([tmp_path])
+                    return path
+            except requests.exceptions.RequestException as e:
+                logger.error(f"单线程下载请求失败: {e}. cURL: {curl}", exc_info=True)
+                continue
+                # raise DownloadError(f"单线程下载失败: {e}") from e
+            except IOError as e:
+                logger.critical(f"单线程下载文件写入失败: {e}. 文件: {tmp_path}", exc_info=True)
+                continue
+                # raise DownloadError(f"单线程下载写入失败: {e}") from e
+            except Exception as e:
+                logger.critical(f"单线程下载过程中发生未知错误: {e}", exc_info=True)
+                continue
+                # raise DownloadError(f"单线程下载未知错误: {e} cURL: {curl}") from e
+            finally:
+                # 无论成功失败，尝试清理临时文件
+                self._cleanup_temp_files([tmp_path])
+        return path
 
     def _cleanup_temp_files(self, file_paths: List[str]):
         """
