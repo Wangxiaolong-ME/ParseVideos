@@ -4,7 +4,8 @@ from telegram.ext import ContextTypes
 from TelegramBot.config import ADMIN_ID
 from TelegramBot.recorder_parse import load_users
 
-import  logging
+import logging
+
 log = logging.getLogger(__name__)
 
 
@@ -17,8 +18,9 @@ async def handle_notify_command(update: Update, context: ContextTypes.DEFAULT_TY
     # 加载用户列表
     users = load_users()
     text = "🤖 Bot 服务已启动 ✅"
-    if update.effective_message.text:
-        text = update.effective_message.text.replace('/notify', '')
+    input_text = update.effective_message.text.replace('/notify', '').replace(' ', '')
+    if input_text:
+        text = input_text
     success = []
 
     for cid, user_info in users.items():
