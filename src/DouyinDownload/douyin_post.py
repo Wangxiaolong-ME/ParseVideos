@@ -121,11 +121,11 @@ class DouyinPost:
 
         except requests.exceptions.RequestException as e:
             # 捕获所有 requests 相关的异常，例如连接错误、超时、HTTP 错误等
-            print(f"HEAD 请求失败或发生错误: {e}")  # 可以替换为 logging.error
+            log.error(f"HEAD 请求失败或发生错误: {e}")  # 可以替换为 logging.error
             return "unknown"
         except Exception as e:
             # 捕获其他未知异常
-            print(f"判断内容类型时发生未知错误: {e}")  # 可以替换为 logging.error
+            log.error(f"判断内容类型时发生未知错误: {e}")  # 可以替换为 logging.error
             return "unknown"
 
     # --- 链接处理方法 (Link Processing Methods) ---
