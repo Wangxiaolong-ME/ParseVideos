@@ -23,17 +23,16 @@ class MusicParser(BaseParser):
         self.song_name = None
         self.song_id = None
 
-    def peek(self) -> tuple[str, str]:
+    async def peek(self) -> tuple[str, str]:
         _, song_name, song_id = get_download_link(self.target, return_song_id=True)
         self.song_id = f"MUSIC{song_id}"
         self.song_name = self._sanitize_filename(song_name)
         return self.song_id, self.song_name
 
-    def parse(self) -> ParseResult:  # noqa: C901
+    async def parse(self) -> ParseResult:  # noqa: C901
         try:
             # ① 解析下载链接（同时返回歌曲名、ID）
-            _, song_name, song_id = get_download_link(self.target, return_song_id=True)
-            local_path = self.save_dir / f"{self.song_id}.mp3"
+            local_path = self.save_dir / f"{self.song_name}.mp3"
 
             # 基本信息
             self.result.title = self.song_name
@@ -46,7 +45,8 @@ class MusicParser(BaseParser):
             else:
                 # ③ 下载音频文件
                 logger.info("开始下载 -> %s", self.target)
-                url, download_url = download_single(self.target, output_dir=str(self.save_dir))
+                url, download_url = download_single(self.target, output_dir=str(self.save_dir),
+                                                    file_name=f"{self.song_name}.mp3")
                 logger.info("下载完成 -> %s", local_path.name)
                 self.result.url = url
                 self.result.download_url = download_url
@@ -67,4 +67,4 @@ class MusicParser(BaseParser):
     # ─────────────────────────────────────────────
     @staticmethod
     def _sanitize_filename(name: str) -> str:
-        return "".join(c for c in name if c not in r'\\/:*?"<>|').strip()
+        return "".join(c for c in name if c not in r'\\/:*?"<>\.|').strip()

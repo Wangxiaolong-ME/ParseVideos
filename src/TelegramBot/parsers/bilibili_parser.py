@@ -37,7 +37,7 @@ class BilibiliParser(BaseParser):
         super().__init__(url, save_dir or BILI_SAVE_DIR)
         self.post = None
 
-    def peek(self) -> tuple[str, str]:
+    async def peek(self) -> tuple[str, str]:
         self.post = BilibiliPost(self.url, threads=8, cookie=BILI_COOKIE).fetch()
         vid = self.post.bvid
         title = self.post.title or self.post.bvid
@@ -45,7 +45,7 @@ class BilibiliParser(BaseParser):
     # ────────────────────────────────────────────────────────────────
     # public API
     # ────────────────────────────────────────────────────────────────
-    def parse(self) -> ParseResult:  # noqa: C901  (保持复杂度便于保留原始日志)
+    async def parse(self) -> ParseResult:  # noqa: C901  (保持复杂度便于保留原始日志)
         try:
             post = self.post
             post.save_dir = self.save_dir
@@ -119,7 +119,6 @@ class BilibiliParser(BaseParser):
 
         # ---- 50 MB 以内：查看本地 / 下载 / 合并 ----
         if not local_path.exists():
-            logger.info("开始下载 -> %s", url)
             vpath, apath = post.download()  # 多线程下载
             v_size = check_file_size(vpath)
             a_size = check_file_size(apath)

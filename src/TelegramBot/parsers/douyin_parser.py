@@ -7,7 +7,7 @@ from telegram.helpers import escape_markdown
 
 from DouyinDownload.douyin_post import DouyinPost
 from DouyinDownload.douyin_image_post import DouyinImagePost
-from TelegramBot.config import DOWNLOAD_TIMEOUT,DOUYIN_FETCH_IMAGE_TIMEOUT, DOUYIN_FETCH_VIDEO_TIMEOUT
+from TelegramBot.config import DOWNLOAD_TIMEOUT, DOUYIN_FETCH_IMAGE_TIMEOUT, DOUYIN_FETCH_VIDEO_TIMEOUT
 from TelegramBot.parsers.base import ParseResult
 from .base import BaseParser, ParseResult
 from PublicMethods.functool_timeout import timeout
@@ -20,12 +20,22 @@ class DouyinParser(BaseParser):
         # 直接将接收到的参数传给父类
         super().__init__(url, save_dir)
         self.post = None
+        self.image_post = None
+        self.content_type = None
 
     async def peek(self) -> tuple[str, str]:
+        vid, title = None, None
         self.post = DouyinPost(self.url)
-        await self.post.fetch_details()  # 只拿 video_id / title
-        vid = self.post.video_id
-        title = self.post.video_title or self.post.video_id
+        self.content_type = self.post.get_content_type(self.post.short_url)
+        if self.content_type == 'image':
+            self.image_post = DouyinImagePost(self.post.short_url)
+            await self.image_post.fetch_details()
+            vid = self.image_post.aweme_id
+            title = self.image_post.title
+        else:
+            await self.post.fetch_details()  # 只拿 video_id / title
+            vid = self.post.video_id
+            title = self.post.video_title or self.post.video_id
         return vid, title
 
     async def parse(self) -> Coroutine[Any, Any, ParseResult] | Any:
@@ -33,13 +43,12 @@ class DouyinParser(BaseParser):
         实现抖音视频/图集的解析和下载逻辑。
         """
         try:
-            post = self.post
-            content_type_str = post.get_content_type(post.short_url)
+            content_type_str = self.content_type
 
             if content_type_str == 'video':
-                return await self._parse_video(post)
+                return await self._parse_video(self.post)
             elif content_type_str == 'image':
-                return await self._parse_image_gallery(post.short_url)
+                return await self._parse_image_gallery(self.image_post)
             else:
                 self.result.error_message = "未能识别抖音内容类型，或该内容不可用。"
                 logger.warning(f"未能识别抖音短链接内容类型: {self.url}")
@@ -96,10 +105,7 @@ class DouyinParser(BaseParser):
         self.result.success = True
         return self.result
 
-    async def _parse_image_gallery(self, url: str) -> ParseResult:
-        image_post = DouyinImagePost(url)
-        await image_post.fetch_details()
-
+    async def _parse_image_gallery(self, image_post: DouyinImagePost) -> ParseResult:
         self.result.vid = image_post.aweme_id
         self.result.title = image_post.title
         self.result.content_type = 'image_gallery'

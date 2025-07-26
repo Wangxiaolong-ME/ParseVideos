@@ -48,8 +48,8 @@ class BilibiliPost:
             self.raw_url = self.parser.url
             self.title = self.parser.title
             self.bvid = self.parser.bvid
-            log.debug(f"标题:{self.title}")
-            log.debug(f"bvid:{self.bvid}")
+            log.info(f"标题:{self.title}")
+            log.info(f"bvid:{self.bvid}")
             if self.parser.preview_video_url:
                 log.warning(f"该视频为私人视频或VIP会员视频的预览片段")
                 self.preview_video = self.parser.preview_video_url
@@ -123,7 +123,7 @@ class BilibiliPost:
                 self._update_self_data()
                 sz = self.size_mb
                 if sz >= min_mb and (max_mb is None or sz <= max_mb):
-                    log.debug(f"粗略估算合并音频后的大小为: {sz} MB")
+                    # log.debug(f"粗略估算合并音频后的大小为: {sz} MB")
                     kept.append(opt)
                 else:
                     log.warning(f"计算合并音频后的大小超出筛选条件")

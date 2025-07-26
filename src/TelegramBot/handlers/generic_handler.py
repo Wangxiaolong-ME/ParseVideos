@@ -101,12 +101,12 @@ async def generic_command_handler(
         parser_instance = parser_class(target_url, save_dir)
 
         # —— 3a. 轻量 peek，看下有没有缓存 ——
-        vid, title = await parser_instance.peek()
-        # try:
-        #     vid, title = await parser_instance.peek()
-        # except Exception:
-        #     # 如果 peek 本身也出问题，继续走 parse 分支
-        #     vid, title = None, None
+        # vid, title = await parser_instance.peek()
+        try:
+            vid, title = await parser_instance.peek()
+        except Exception:
+            # 如果 peek 本身也出问题，继续走 parse 分支
+            vid, title = None, None
 
         # 检查 file_id 缓存
         if vid:

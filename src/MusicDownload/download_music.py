@@ -74,23 +74,20 @@ def get_download_link(song_page_url, return_song_id= False):
         return download_url, song_name, song_id
     return download_url, song_name
 
-def download_file(download_url, song_name, save_dir):
+def download_file(download_url, out_path):
     """
     流式下载并保存到本地，返回文件路径
     """
-    os.makedirs(save_dir, exist_ok=True)
     # fn = download_url.split("/")[-1].split("?")[0]
     # path = os.path.join(save_dir, fn)
     # 确保文件名带上 .mp3 后缀
-    filename = song_name if song_name.lower().endswith('.mp3') else f"{song_name}.mp3"
-    path = os.path.join(save_dir, filename)
     with requests.get(download_url, stream=True, timeout=30) as r:
         r.raise_for_status()
-        with open(path, "wb") as f:
+        with open(out_path, "wb") as f:
             for chunk in r.iter_content(8192):
                 if chunk:
                     f.write(chunk)
-    return path
+    return out_path
 
 def main():
     if not os.path.isfile(INPUT_FILE):

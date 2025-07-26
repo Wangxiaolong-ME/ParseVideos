@@ -18,6 +18,7 @@ from DouyinDownload.models import VideoOption, ImageOptions
 import logging
 
 from PublicMethods.tools import prepared_to_curl
+from PublicMethods.playwrigth_manager import PlaywrightManager
 
 log = logging.getLogger(__name__)
 
@@ -314,31 +315,28 @@ class DouyinParser:
         )
 
     async def fetch_images(self, short_url):
-        async with async_playwright() as p:
-            try:
-                browser = await p.chromium.launch(headless=True, args=['--disable-images'])
-                page = await browser.new_page()
-            except Exception as e:
-                log.error(f"初始化失败 ：{e}")
-            try:
-                await page.route("**/*.{png,jpg,jpeg,svg,css,woff,woff2,ttf}", lambda route: route.abort())
-                await page.goto(short_url)
-                cookies = await self._get_cookies(page, IMAGES_NEED_COOKIES)
-                resp = requests.get(short_url, cookies=cookies, headers=DOWNLOAD_HEADERS)
-                curl = prepared_to_curl(resp.request)
-                log.debug(curl)
-                html = resp.text
-                html = html.replace('\n', '')
-                soup = BeautifulSoup(html, 'html.parser')
-                script_tags = soup.find_all('script')
-                # 提取 playinfo 与 initial state
-                note_detail = r'__pace_f.push'
+        context = await PlaywrightManager.new_context()
+        page = await context.new_page()
+        log.debug(f"short url:{short_url}")
+        try:
+            await page.route("**/*{stylesheet,css,image,media,ping,front,websocket,preflight}", lambda route: route.abort())
+            await page.goto(short_url)
+            cookies = await self._get_cookies(page, IMAGES_NEED_COOKIES)
+            resp = requests.get(short_url, cookies=cookies, headers=DOWNLOAD_HEADERS)
+            curl = prepared_to_curl(resp.request)
+            log.debug(curl)
+            html = resp.text
+            html = html.replace('\n', '')
+            soup = BeautifulSoup(html, 'html.parser')
+            script_tags = soup.find_all('script')
+            # 提取 playinfo 与 initial state
+            note_detail = r'__pace_f.push'
 
-                aweme_json = self._search_scripts_from_scripts(script_tags, note_detail, f'(awemeId|liveReason)')
-                return self._parse_images_options(aweme_json)
+            aweme_json = self._search_scripts_from_scripts(script_tags, note_detail, f'(awemeId|liveReason)')
+            return self._parse_images_options(aweme_json)
 
-            finally:
-                await browser.close()
+        finally:
+            await context.close()
 
     async def fetch(self, short_url: str, target_api=AWEME_DETAIL_API_URL) -> tuple[str, list[VideoOption]]:
         """
@@ -348,28 +346,26 @@ class DouyinParser:
         Returns:
             A tuple containing: (video_title, list_of_video_options)
         """
+        context = await PlaywrightManager.new_context()
+        page = await context.new_page()
+        log.debug(f"short url:{short_url}")
         try:
-            async with async_playwright() as p:
-                browser = await p.chromium.launch(headless=True, args=['--disable-images'])
-                page = await browser.new_page()
-                log.debug(f"short url:{short_url}")
+            detail_json = await self._intercept_detail_api(page, short_url, target_api)
+            if not detail_json:
+                raise ParseError("未能获取到有效的API JSON响应 (Failed to get a valid API JSON response).")
 
-                detail_json = await self._intercept_detail_api(page, short_url, target_api)
-                if not detail_json:
-                    raise ParseError("未能获取到有效的API JSON响应 (Failed to get a valid API JSON response).")
+            title_raw = detail_json.get("aweme_detail", {}).get("preview_title", "")
+            # 清理文件名中的非法字符
+            # Sanitize illegal characters from the filename
+            video_title = re.sub(r'[\\/:*?"<>|]', '_', title_raw) or short_url
 
-                title_raw = detail_json.get("aweme_detail", {}).get("preview_title", "")
-                # 清理文件名中的非法字符
-                # Sanitize illegal characters from the filename
-                video_title = re.sub(r'[\\/:*?"<>|]', '_', title_raw) or short_url
+            video_options = self._parse_video_options(detail_json)
+            if not video_options:
+                raise ParseError(
+                    "从API响应中未能解析出任何可下载的视频链接 (No downloadable links could be parsed).")
 
-                video_options = self._parse_video_options(detail_json)
-                if not video_options:
-                    raise ParseError(
-                        "从API响应中未能解析出任何可下载的视频链接 (No downloadable links could be parsed).")
-
-                return video_title, video_options
+            return video_title, video_options
         except Exception as e:
             log.error(e)
         finally:
-            await browser.close()
+            await context.close()

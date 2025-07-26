@@ -17,7 +17,8 @@ from DouyinDownload.exceptions import ParseError
 from DouyinDownload.models import VideoOption
 from DouyinDownload.parser import DouyinParser
 from TelegramBot.config import DOUYIN_DOWNLOAD_THREADS, DOUYIN_SESSION_COUNTS
-import  logging
+import logging
+
 log = logging.getLogger(__name__)
 
 
@@ -75,6 +76,7 @@ class DouyinPost:
         self.raw_video_options = []
         self.processed_video_options = []
 
+        self.content_type = 'video'
         self.gear_name = None  # 视频去重后才会生成
 
         log.debug(f"抖音作品已初始化 (DouyinPost initialized). 短链接 (Short URL): {self.short_url}")
@@ -92,8 +94,9 @@ class DouyinPost:
             self.video_id = self.raw_video_options[0].aweme_id
             # 初始状态下，处理后的列表等于原始列表
             self.processed_video_options = self.raw_video_options.copy()
-            log.debug(f"获取成功！标题 (Success! Title): '{self.video_title}'. "
-                      f"共找到 {len(self.raw_video_options)} 个可用视频流 (Found {len(self.raw_video_options)} available streams).")
+            log.info(f"标题:{self.video_title}")
+            log.info(f"vid:{self.video_id}")
+
             # 默认按分辨率降序排序
             self.sort_options(by='resolution', descending=True)
         return self
@@ -105,7 +108,7 @@ class DouyinPost:
         """
         try:
             # 不能没有头，第二条会成功；也不能有准确的头，第三台跳会444，所以设置模糊头
-            headers= DOWNLOAD_HEADERS
+            headers = DOWNLOAD_HEADERS
             headers['User-Agent'] = 'p'
             final_url = self.downloader._get_final_url(short_url, headers=headers, return_filed_url=True)
             log.debug(f"通过 HEAD 请求重定向判断指向内容类型: {final_url}")
@@ -242,21 +245,7 @@ class DouyinPost:
 
     def get_option(self, resolution: Optional[int] = None, strategy: str = "highest_resolution") -> Optional[
         VideoOption]:
-        """
-        根据给定参数返回单个 VideoOption 对象，便于直接取属性。
 
-        Args:
-            resolution (int|None): 希望获取的分辨率；
-                                   - None 表示按 strategy 自动选。
-            strategy (str): 当 resolution 为 None 时的选择策略：
-                            - "highest_resolution"（默认）
-                            - "smallest_size"
-                            - "largest_size"
-                            - "lowest_bitrate"
-                            - "highest_bitrate"
-        Returns:
-            VideoOption | None: 若找不到符合条件的选项则返回 None。
-        """
         if not self.processed_video_options:
             raise ParseError("请先调用 .fetch_details() 填充 processed_video_options")
 

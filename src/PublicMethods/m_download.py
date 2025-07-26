@@ -145,7 +145,7 @@ class SegmentDownloader(threading.Thread):
         """
         线程执行体，负责下载指定字节范围的数据。
         """
-        logger.info(f"分片下载线程 {self.name} 开始下载。URL: {self.url}, Range: {self.headers['Range']}")
+        logger.debug(f"分片下载线程 {self.name} 开始下载。URL: {self.url}, Range: {self.headers['Range']}")
         for attempt in range(1, self.max_retries + 1):
             try:
                 # 确保每次重试前检查文件是否存在，如果存在则尝试删除，避免追加
@@ -190,8 +190,8 @@ class SegmentDownloader(threading.Thread):
                         f"分片 {self.name} 下载大小不匹配。预期: {expected_size}B, 实际: {actual_downloaded_in_segment}B。可能文件被截断或Range请求部分支持。"
                     )
 
-                logger.info(
-                    f"分片下载线程 {self.name} 完成。已下载 {actual_downloaded_in_segment} 字节到 {self.tmp_path}")
+                logger.debug(
+                    f"分片下载线程 {self.name} 完成")
                 self.queue.put((self.start_byte, self.tmp_path))  # 成功，将结果放入队列
                 return  # 成功，退出线程
             except requests.exceptions.RequestException as e:
@@ -303,7 +303,7 @@ class Downloader:
         current_url = url
         visited_urls = {url}  # 记录已访问的 URL，防止重定向循环
 
-        logger.debug(f"开始跟踪重定向。初始URL: {current_url}")
+        # logger.debug(f"开始跟踪重定向。初始URL: {current_url}")
         start_time = time.perf_counter()  # 记录开始时间
 
         for i in range(max_redirects):
@@ -350,8 +350,8 @@ class Downloader:
                     return current_url
 
                 # 非重定向状态码，表示已找到最终资源
-                logger.debug(
-                    f"已找到最终URL: {current_url} (状态码: {resp.status_code}) (耗时: {time.perf_counter() - start_time:.4f}秒)")
+                # logger.debug(
+                #     f"已找到最终URL: {current_url} (状态码: {resp.status_code}) (耗时: {time.perf_counter() - start_time:.4f}秒)")
                 return current_url
 
             except requests.exceptions.Timeout as e:
@@ -402,7 +402,9 @@ class Downloader:
             DownloadError: 如果下载过程中发生任何不可恢复的错误。
         """
         headers = headers or {}
-        logger.info(f"开始下载任务: {url} -> {path}")
+        logger.info(f"开始下载:{url}")
+        logger.info(f"保存路径:{path}")
+
         logger.debug(
             f"下载参数: headers={headers}, timeout={timeout}, max_redirects={max_redirects}, multi_session={multi_session}, session_pool_size={session_pool_size}")
         download_start_time = time.perf_counter()  # 记录开始时间
@@ -415,7 +417,7 @@ class Downloader:
             resp_head = self.default_session.head(final_url, headers=headers, timeout=timeout)
             resp_head.raise_for_status()  # 确保 HEAD 请求成功
             total_size = int(resp_head.headers.get('Content-Length', 0))
-            logger.info(f"文件最终URL: {final_url}, 文件总大小: {Downloader._sizeof_fmt_static(total_size)}")
+            # logger.info(f"文件最终URL: {final_url}, 文件总大小: {Downloader._sizeof_fmt_static(total_size)}")
             if total_size == 0:
                 logger.warning("服务器返回的 Content-Length 为 0，可能文件为空或不支持。尝试单线程下载。")
                 return self._single_download(final_url, path, headers, timeout)
@@ -460,7 +462,7 @@ class Downloader:
                 session_pool.append(sess)
                 logger.debug(f"Session 池: 创建 Session {i + 1}/{pool_actual_size}")
         else:
-            logger.info("禁用多 Session 策略，所有线程共享主 Session。")
+            logger.debug("禁用多 Session 策略，所有线程共享主 Session。")
 
         # 4. 初始化共享资源
         downloaded_counter = [0]  # 用列表包装以便在多线程中传递引用并修改
@@ -470,14 +472,14 @@ class Downloader:
         # 5. 启动进度监控
         monitor = ProgressMonitor(total_size, downloaded_counter, lock)
         monitor.start()
-        logger.info("进度监控线程已启动。")
+        logger.debug("进度监控线程已启动。")
 
         # 6. 分配分片并启动下载线程
         part_size = total_size // self.threads
         tmp_files_map = {}  # {start_byte: tmp_path} 存储分片信息
         segment_threads: List[SegmentDownloader] = []
 
-        logger.info(f"开始多线程分片下载，分片数量：{self.threads}")
+        logger.debug(f"开始多线程分片下载，分片数量：{self.threads}")
         for i in range(self.threads):
             start_byte = i * part_size
             # 最后一个分片处理剩余部分
@@ -527,7 +529,7 @@ class Downloader:
             )
             segment_threads.append(t)
             t.start()
-            logger.info(f"分片线程 {t.name} 已启动。下载范围: [{start_byte}-{end_byte}] 到 {tmp_path}")
+            logger.debug(f"分片线程 {t.name} 已启动。下载范围: [{start_byte}-{end_byte}] 到 {tmp_path}")
 
         # 7. 等待分片线程完成，带超时保护
         all_segments_completed = True

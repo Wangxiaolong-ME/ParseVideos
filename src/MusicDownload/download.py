@@ -70,17 +70,18 @@ def download_playlist(playlist_input, limit=None, output_dir='downloads'):
     log.debug("Playlist download complete.")
 
 
-def download_single(single_input, output_dir='downloads'):
+def download_single(song_id, output_dir='downloads', file_name=None):
     """
     下载单曲。
     参数 single_input: 单曲 ID 或 URL。
     """
-    sid = extract_id(single_input, item_type='song')
-    page_url = f"https://music.163.com/song?id={sid}"
+    page_url = f"https://music.163.com/song?id={song_id}"
     real_url, song_name = get_download_link(page_url)
     log.debug(f"Downloading: {song_name}")
     os.makedirs(output_dir, exist_ok=True)
-    saved = download_file(real_url, song_name, output_dir)
+    file_name = file_name or f"{song_id}.mp3"
+    out_path = os.path.join(output_dir, file_name)
+    saved = download_file(real_url, out_path)
     log.debug(f"Saved: {saved}")
     log.debug("Single download complete.")
     return page_url, real_url
