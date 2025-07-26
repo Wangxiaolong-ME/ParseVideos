@@ -228,7 +228,7 @@ class DouyinParser:
 
         aweme_id = aweme_detail.get("aweme_id")
         bit_rate_list = aweme_detail.get("video", {}).get("bit_rate", [])
-        log.debug(f"DouYin_aweme_detail 视频流: {bit_rate_list}")
+        # log.debug(f"DouYin_aweme_detail 视频流: {bit_rate_list}")
         # log.debug(f"DouYin_aweme_detail 原始数据: {aweme_detail}")
         duration = aweme_detail.get("duration")
 
