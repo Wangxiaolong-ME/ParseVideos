@@ -1,7 +1,7 @@
 import logging, sys
 from PublicMethods.logger import setup_log, get_logger
 
-setup_log(logging.INFO, "TelegramService", one_file=True)
+setup_log(logging.DEBUG, "TelegramService", one_file=True)
 logger = get_logger(__name__)
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
 from TelegramBot.config import TELEGRAM_TOKEN_ENV, ADMIN_ID, MIN_MSG_INTERVAL
