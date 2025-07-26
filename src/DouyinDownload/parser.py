@@ -6,11 +6,11 @@ Responsible for parsing detailed video information from a Douyin URL.
 import json
 import re
 import time
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Coroutine
 
 import requests
 from bs4 import BeautifulSoup
-from playwright.sync_api import sync_playwright, Page, Response, TimeoutError
+from playwright.async_api import async_playwright, Page, Response, TimeoutError
 
 from DouyinDownload.config import AWEME_DETAIL_API_URL, PLAYWRIGHT_TIMEOUT, IMAGES_NEED_COOKIES, DOWNLOAD_HEADERS
 from DouyinDownload.exceptions import URLExtractionError, ParseError
@@ -100,7 +100,7 @@ class DouyinParser:
         log.error("未匹配到标签内的目标内容")
         return None
 
-    def _get_cookies(self, page: Page, cookie_names: List[str]) -> Dict[str, str]:
+    async def _get_cookies(self, page: Page, cookie_names: List[str]) -> Dict[str, str]:
         """
         从 Playwright Page 对象中提取指定名称的 Cookie。
 
@@ -117,7 +117,7 @@ class DouyinParser:
             # 获取当前浏览器上下文中的所有 Cookie
             # 注意：context.cookies() 获取的是当前上下文所有域的 Cookie
             # 如果需要特定域的，可能需要进一步过滤 domain
-            all_cookies = page.context.cookies()
+            all_cookies = await page.context.cookies()
 
             for cookie_obj in all_cookies:
                 cookie_name = cookie_obj.get("name")
@@ -135,67 +135,86 @@ class DouyinParser:
             log.error(f"获取指定 Cookie 时发生错误: {e}", exc_info=True)
             return {}
 
-    def _intercept_detail_api(self, page: Page, short_url: str, target_api) -> Optional[Dict[str, Any]]:
+    async def _intercept_detail_api(self, page: Page, short_url: str, target_api) -> Optional[Dict[str, Any]]:
         """
         核心拦截逻辑：访问页面并捕获包含视频详情的JSON响应。
         Core interception logic: visits the page and captures the JSON response containing video details.
         """
-
-        detail_response_json: Optional[Dict[str, Any]] = None
         g_start = time.time()
 
-        def handle_response(response: Response):
-            nonlocal detail_response_json
-            if target_api in response.url and response.ok:
-                try:
-                    detail_response_json = response.json()
-                except Exception:
-                    # 避免JSON解析失败导致程序崩溃
-                    pass
-
-        # 拦截并阻止图片、CSS等无关资源加载，加快速度
-        # Intercept and block irrelevant resources like images and CSS to speed up the process
-        page.route("**/*.{png,jpg,jpeg,svg,css,woff,woff2,ttf}", lambda route: route.abort())
-        start = time.time()
-        log.debug(f"_intercept_detail_api 核心拦截逻辑 page.on.response 1")
-        page.on("response", handle_response)
-        log.debug(f"_intercept_detail_api 核心拦截逻辑 page.on.response 2 {(time.time() - start):.2f}")
-
         try:
-            start = time.time()
-            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.goto domcontentloaded 1")
-            page.goto(short_url, wait_until="domcontentloaded", timeout=PLAYWRIGHT_TIMEOUT)
-            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.goto domcontentloaded 2 {(time.time() - start):.2f}")
+            INTERCEPT_RULES = [
+                # INTERCEPT_SCRIPT_ALL,
+                ("stylesheet", None),
+                ("css" , None),
+                ("image", None),
+                ("png", None),
+                ("gif", None),
+                ("media", None),
+                ("websocket", None),
+                ("preflight", None),
+                ("front", None),
+                ("ping", None),
+            ]
+            ACCEPT_RULES = [
+                ("document", "v.douyin.com"),
+                ("document", "www.douyin.com"),
+                ("xhr", target_api),
+                ("script", "obj/security-secsdk"),
+            ]
+            async def _route_handler(route):
+                # 如果页面已关闭，则跳过 abort
+                if page.is_closed():
+                    return
+                r = route.request
+                # start = time.time()
+                allow = True
+                # 允许放行
+                for resource_type, fragment in ACCEPT_RULES:
+                    if r.resource_type == resource_type and fragment in r.url:
+                        # log.debug(f"命中允许放行  {r.url}")
+                        break
+                        # await route.continue_()
+                        # return
+                # 拦截所有 script OR 指定片段的 script
+                for rt, _ in INTERCEPT_RULES:
+                    if r.resource_type == rt:
+                        allow = False
+                        break
 
-            # 等待目标API响应，确保数据被捕获
+                if allow:
+                    await route.continue_()
+                    # log.debug(f"允许放行 {round(time.time() - start, 2)} {r.resource_type} {r.url}")
+                else:
+                    await route.abort()
+                    # log.debug(f"拦截 {round(time.time() - start, 2)} {r.resource_type} {r.url}")
+                return
+
+            # 拦截并阻止图片、CSS等无关资源加载，加快速度
+            # Intercept and block irrelevant resources like images and CSS to speed up the process
+            # await page.route("**/*{stylesheet,css,image,media,ping,front,websocket,preflight}",lambda route: route.abort())
+            await page.route("**/*", _route_handler)
+
             start = time.time()
-            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.wait_for_event 1")
-            page.wait_for_event(
-                "response",
-                timeout=PLAYWRIGHT_TIMEOUT / 2,
-                predicate=lambda r: AWEME_DETAIL_API_URL in r.url and r.status == 200
-            )
-            log.debug(f"_intercept_detail_api 核心拦截逻辑 page.wait_for_event 2 {(time.time() - start):.2f}")
-        except TimeoutError:
-            # 如果上面的wait_for_function不可靠，可以回退到等待response事件
+            # 在导航前启动等待，确保能捕获到随后发出的目标请求
+            async with page.expect_response(
+                    lambda r: target_api in r.url and r.status == 200,
+                    timeout=PLAYWRIGHT_TIMEOUT
+            ) as resp_info:
+                await page.goto(short_url, wait_until="domcontentloaded", timeout=PLAYWRIGHT_TIMEOUT)
+            log.debug(f"_intercept_page.route 捕获目标请求 耗时 {round(time.time() - start, 2)}")
+
+            response = await resp_info.value  # 返回 Response 对象
+
             try:
-                page.wait_for_event(
-                    "response",
-                    timeout=PLAYWRIGHT_TIMEOUT,  # 给一个短点的超时
-                    predicate=lambda r: AWEME_DETAIL_API_URL in r.url and r.status == 200
-                )
-            except TimeoutError:
-                raise ParseError(f"在 {PLAYWRIGHT_TIMEOUT}ms 内未能拦截到作品详情API请求，请检查网络或链接是否有效。")
+                detail_json = await response.json()
+                return detail_json
+            except Exception as e:
+                log.error(f"解析 JSON 失败: {e}")
+                raise ParseError("解析 API JSON 失败。")
         finally:
-            # 移除事件监听器
-            try:
-                log.debug("移除响应事件监听器")
-                page.remove_listener("response", handle_response)
-                log.debug(f"_intercept_detail_api 核心拦截逻辑 总耗时 {round(time.time() - g_start, 2)}")
-            except KeyError as e:
-                log.error(f"移除监听器时发生错误: {e}")
-
-        return detail_response_json
+            await page.unroute_all(behavior="ignoreErrors")
+            log.debug(f"_intercept_detail_api 核心拦截逻辑 总耗时 {round(time.time() - g_start, 2)}")
 
     def _parse_video_options(self, detail_json: Dict[str, Any]) -> List[VideoOption]:
         """
@@ -294,14 +313,17 @@ class DouyinParser:
             images=images
         )
 
-    def fetch_images(self, short_url):
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, args=['--disable-images'])
-            page = browser.new_page()
+    async def fetch_images(self, short_url):
+        async with async_playwright() as p:
             try:
-                page.route("**/*.{png,jpg,jpeg,svg,css,woff,woff2,ttf}", lambda route: route.abort())
-                page.goto(short_url)
-                cookies = self._get_cookies(page, IMAGES_NEED_COOKIES)
+                browser = await p.chromium.launch(headless=True, args=['--disable-images'])
+                page = await browser.new_page()
+            except Exception as e:
+                log.error(f"初始化失败 ：{e}")
+            try:
+                await page.route("**/*.{png,jpg,jpeg,svg,css,woff,woff2,ttf}", lambda route: route.abort())
+                await page.goto(short_url)
+                cookies = await self._get_cookies(page, IMAGES_NEED_COOKIES)
                 resp = requests.get(short_url, cookies=cookies, headers=DOWNLOAD_HEADERS)
                 curl = prepared_to_curl(resp.request)
                 log.debug(curl)
@@ -316,9 +338,9 @@ class DouyinParser:
                 return self._parse_images_options(aweme_json)
 
             finally:
-                browser.close()
+                await browser.close()
 
-    def fetch(self, short_url: str, target_api=AWEME_DETAIL_API_URL) -> Tuple[str, List[VideoOption]]:
+    async def fetch(self, short_url: str, target_api=AWEME_DETAIL_API_URL) -> tuple[str, list[VideoOption]]:
         """
         执行解析的主流程。
         Executes the main parsing flow.
@@ -326,20 +348,20 @@ class DouyinParser:
         Returns:
             A tuple containing: (video_title, list_of_video_options)
         """
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True, args=['--disable-images'])
-            page = browser.new_page()
-            log.debug(f"short url:{short_url}")
-            try:
-                detail_json = self._intercept_detail_api(page, short_url, target_api)
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch(headless=True, args=['--disable-images'])
+                page = await browser.new_page()
+                log.debug(f"short url:{short_url}")
+
+                detail_json = await self._intercept_detail_api(page, short_url, target_api)
                 if not detail_json:
                     raise ParseError("未能获取到有效的API JSON响应 (Failed to get a valid API JSON response).")
 
                 title_raw = detail_json.get("aweme_detail", {}).get("preview_title", "")
                 # 清理文件名中的非法字符
                 # Sanitize illegal characters from the filename
-                video_title = re.sub(r'[\\/:*?"<>|]', '_',
-                                     title_raw) or short_url
+                video_title = re.sub(r'[\\/:*?"<>|]', '_', title_raw) or short_url
 
                 video_options = self._parse_video_options(detail_json)
                 if not video_options:
@@ -347,5 +369,7 @@ class DouyinParser:
                         "从API响应中未能解析出任何可下载的视频链接 (No downloadable links could be parsed).")
 
                 return video_title, video_options
-            finally:
-                browser.close()
+        except Exception as e:
+            log.error(e)
+        finally:
+            await browser.close()

@@ -79,14 +79,14 @@ class DouyinPost:
 
         log.debug(f"抖音作品已初始化 (DouyinPost initialized). 短链接 (Short URL): {self.short_url}")
 
-    def fetch_details(self) -> 'DouyinPost':
+    async def fetch_details(self) -> 'DouyinPost':
         """
         获取视频详情，填充 raw_video_options 和 processed_video_options 属性。
         Fetches video details, populating the raw_video_options and processed_video_options attributes.
         """
         log.debug("正在获取作品详情 (Fetching post details)...")
         if not self.video_title:  # 避免重复获取
-            self.video_title, self.raw_video_options = self.parser.fetch(self.short_url)
+            self.video_title, self.raw_video_options = await self.parser.fetch(self.short_url)
             # 保留原始标题，并创建一个处理后的标题用于文件命名
             self.processed_video_title = re.sub(r'[#].*?(\s|$)', '', self.video_title.replace('\n', ' ')).strip()
             self.video_id = self.raw_video_options[0].aweme_id

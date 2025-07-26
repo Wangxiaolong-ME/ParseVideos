@@ -66,7 +66,7 @@ class BaseParser(ABC):
         self.save_dir.mkdir(parents=True, exist_ok=True)
 
     @abstractmethod
-    def parse(self) -> ParseResult:
+    async def parse(self) -> ParseResult:
         """
         核心解析方法。
         子类必须实现此方法，执行下载或解析，并填充 self.result 对象。
@@ -75,7 +75,7 @@ class BaseParser(ABC):
         """
         raise NotImplementedError
 
-    def peek(self) -> tuple[str, str]:
+    async def peek(self) -> tuple[str, str]:
         """
          只返回 (vid, title)，不做下载。
         """

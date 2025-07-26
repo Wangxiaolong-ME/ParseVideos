@@ -30,7 +30,7 @@ DOUYIN_DOWNLOAD_THREADS = 4
 
 # Playwright 拦截API的超时时间 (毫秒)
 # Timeout for Playwright API interception (in milliseconds)
-PLAYWRIGHT_TIMEOUT = 30000
+PLAYWRIGHT_TIMEOUT = 15000
 
 # 抖音作品详情API的URL特征
 # URL feature for Douyin post detail API

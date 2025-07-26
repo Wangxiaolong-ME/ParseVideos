@@ -101,11 +101,12 @@ async def generic_command_handler(
         parser_instance = parser_class(target_url, save_dir)
 
         # —— 3a. 轻量 peek，看下有没有缓存 ——
-        try:
-            vid, title = parser_instance.peek()
-        except Exception:
-            # 如果 peek 本身也出问题，继续走 parse 分支
-            vid, title = None, None
+        vid, title = await parser_instance.peek()
+        # try:
+        #     vid, title = await parser_instance.peek()
+        # except Exception:
+        #     # 如果 peek 本身也出问题，继续走 parse 分支
+        #     vid, title = None, None
 
         # 检查 file_id 缓存
         if vid:
@@ -129,8 +130,8 @@ async def generic_command_handler(
 
         logger.info(f"functools run parse task 开始解析")
         # functools.partial is used to pass arguments to the function running in the executor
-        parse_task = functools.partial(parser_instance.parse)
-        parse_result: ParseResult = await loop.run_in_executor(executor, parse_task)
+        # parse_task = functools.partial(parser_instance.parse)
+        parse_result: ParseResult = await parser_instance.parse()
 
         # 将解析结果同步到日志记录器
         _sync_record_with_result(record, parse_result)
@@ -171,10 +172,7 @@ async def generic_command_handler(
 
     except Exception as e:
         logger.exception(f"{platform_name}_command 失败: {e}")
-        if 'progress_msg' in locals() and progress_msg:
-            await progress_msg.edit_text(EXCEPTION_MSG)
-        else:
-            await sender.send(EXCEPTION_MSG)
+        await sender.send(EXCEPTION_MSG)
         record.exception = str(e)
     finally:
         # ---- 6. 清理和收尾 ----

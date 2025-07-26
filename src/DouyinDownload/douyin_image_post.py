@@ -48,14 +48,14 @@ class DouyinImagePost:
 
         log.debug(f"抖音图片作品已初始化 (DouyinImagePost initialized). 短链接 (Short URL): {self.short_url}")
 
-    def fetch_details(self) -> 'DouyinImagePost':
+    async def fetch_details(self) -> 'DouyinImagePost':
         """
         获取图片作品详情，填充 aweme_detail 属性。
         Fetches image post details, populating the aweme_detail attribute.
         """
         log.info("正在获取图片作品详情 (Fetching image post details)...")
         if not self.aweme_detail:  # 避免重复获取
-            self.aweme_detail = self.parser.fetch_images(self.short_url)
+            self.aweme_detail = await self.parser.fetch_images(self.short_url)
             if not self.aweme_detail:
                 raise ParseError("未能获取到有效的图片详情 (Failed to get valid image details).")
             self.title = self.aweme_detail.desc
