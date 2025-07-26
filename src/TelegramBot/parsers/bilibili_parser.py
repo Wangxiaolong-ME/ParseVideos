@@ -18,7 +18,7 @@ from BilibiliDownload.bilibili_post import BilibiliPost
 from PublicMethods.tools import check_file_size
 from TelegramBot.config import BILI_SAVE_DIR, BILI_COOKIE
 from .base import BaseParser, ParseResult
-from PublicMethods.functool_timeout import timeout
+from PublicMethods.functool_timeout import retry_on_timeout
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ class BilibiliParser(BaseParser):
         self.result.success = True
         return self.result
 
-    @timeout(40)
+    @retry_on_timeout(40, 2)
     def _parse_video(self, post: BilibiliPost) -> ParseResult:
         """常规 bilibili 视频解析+合并。"""
         # ---- 预处理 ----

@@ -8,9 +8,8 @@ from telegram.helpers import escape_markdown
 from DouyinDownload.douyin_post import DouyinPost
 from DouyinDownload.douyin_image_post import DouyinImagePost
 from TelegramBot.config import DOWNLOAD_TIMEOUT, DOUYIN_FETCH_IMAGE_TIMEOUT, DOUYIN_FETCH_VIDEO_TIMEOUT
-from TelegramBot.parsers.base import ParseResult
 from .base import BaseParser, ParseResult
-from PublicMethods.functool_timeout import timeout
+from PublicMethods.functool_timeout import retry_on_timeout_async
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +37,7 @@ class DouyinParser(BaseParser):
             title = self.post.video_title or self.post.video_id
         return vid, title
 
+    @retry_on_timeout_async(60, 2)
     async def parse(self) -> Coroutine[Any, Any, ParseResult] | Any:
         """
         实现抖音视频/图集的解析和下载逻辑。

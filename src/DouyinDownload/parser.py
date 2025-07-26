@@ -6,11 +6,11 @@ Responsible for parsing detailed video information from a Douyin URL.
 import json
 import re
 import time
-from typing import Dict, Any, List, Optional, Tuple, Coroutine
+from typing import Dict, Any, List, Optional, Coroutine
 
 import requests
 from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright, Page, Response, TimeoutError
+from playwright.async_api import Page
 
 from DouyinDownload.config import AWEME_DETAIL_API_URL, PLAYWRIGHT_TIMEOUT, IMAGES_NEED_COOKIES, DOWNLOAD_HEADERS
 from DouyinDownload.exceptions import URLExtractionError, ParseError
@@ -19,7 +19,7 @@ import logging
 
 from PublicMethods.tools import prepared_to_curl
 from PublicMethods.playwrigth_manager import PlaywrightManager
-
+from PublicMethods.functool_timeout import retry_on_timeout_async
 log = logging.getLogger(__name__)
 
 
@@ -314,6 +314,7 @@ class DouyinParser:
             images=images
         )
 
+    @retry_on_timeout_async(10, 3)
     async def fetch_images(self, short_url):
         context = await PlaywrightManager.new_context()
         page = await context.new_page()
@@ -338,7 +339,8 @@ class DouyinParser:
         finally:
             await context.close()
 
-    async def fetch(self, short_url: str, target_api=AWEME_DETAIL_API_URL) -> tuple[str, list[VideoOption]]:
+    @retry_on_timeout_async(10, 3)
+    async def fetch(self, short_url: str, target_api=AWEME_DETAIL_API_URL) -> tuple[str, list[VideoOption]] | None:
         """
         执行解析的主流程。
         Executes the main parsing flow.

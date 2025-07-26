@@ -1,7 +1,8 @@
 import functools
 import concurrent.futures
 import threading
-
+import logging
+log = logging.getLogger(__name__)
 
 class TimeoutException(Exception):
     """函数执行超时"""
@@ -52,7 +53,7 @@ def retry_on_timeout(timeout_sec: int, retries: int):
                     return timed(*args, **kwargs)
                 except TimeoutException as e:
                     last_exc = e
-                    print(f"[{func.__name__}] 第{attempt}次调用超时，准备重试…")
+                    log.warning(f"[{func.__name__}] 第{attempt}次调用超时，准备重试…")
             # 如果所有 attempt 都超时，则抛最后一次异常
             raise last_exc
 
@@ -93,7 +94,7 @@ def retry_on_timeout_async(timeout_sec: float, retries: int):
                         f"[{func.__name__}] 第 {attempt} 次调用超时（>{timeout_sec}s），准备重试…"
                     )
                     # 你也可以改为 logger.warning(...)
-                    print(last_exc)
+                    log.warning(last_exc)
                 except Exception as e:
                     # 如果是其他异常，直接抛，不再重试
                     raise
