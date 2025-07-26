@@ -53,17 +53,19 @@ class PlaywrightManager:
 
     @classmethod
     async def close(cls):
-        """
-        程序退出时关闭 Browser 和 Playwright
-        """
-        if cls._browser:
-            log.info(f"[PlaywrightManager] 关闭浏览器，Browser ID={cls._browser_id}")
-            await cls._browser.close()
-            cls._browser = None
-            cls._browser_id = None
-        if cls._playwright:
-            await cls._playwright.stop()
-            cls._playwright = None
+        """关闭浏览器和 playwright"""
+        try:
+            if cls._browser:
+                log.info(f"[PlaywrightManager] 关闭浏览器，Browser ID={cls._browser_id}")
+                await cls._browser.close()
+                cls._browser = None
+                cls._browser_id = None
+            if cls._playwright:
+                await cls._playwright.stop()
+                cls._playwright = None
+        except RuntimeError as e:
+            # 捕捉事件循环关闭后的异常，防止程序崩溃
+            log.error(f"关闭 Playwright 时出错: {e}")
 
 
 # 注册进程退出时的清理钩子，保证整个程序结束前关闭浏览器

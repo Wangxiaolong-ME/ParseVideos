@@ -196,3 +196,23 @@ def _record_user_parse(info: UserParseResult):
             f"执行原子性文件替换时发生错误: {e}。数据可能处于不一致状态，请检查 '{STATS_FILE}' 和 '{STATS_FILE_BAK}'。")
         # 这种情况下，可能需要人工介入检查文件状态
         # 主文件可能已经损坏或丢失，但至少备份文件可能还在
+
+
+def load_users() -> dict[int, dict]:
+    """加载所有用户的 ID、用户名和全名"""
+    if not os.path.exists(STATS_FILE):
+        return {}
+
+    with open(STATS_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    # 返回一个字典，键是用户的 UID，值是包含 uname 和 full_name 的字典
+    users = {
+        int(uid): {
+            'uname': user_info.get('records', [])[0].get('uname', ''),
+            'full_name': user_info.get('records', [])[0].get('full_name', '')
+        }
+        for uid, user_info in data.items()
+    }
+
+    return users
