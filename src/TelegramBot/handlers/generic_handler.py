@@ -14,7 +14,8 @@ from telegram.ext import ContextTypes
 from telegram.helpers import escape_markdown
 
 from TelegramBot.cleaner import purge_old_files
-from TelegramBot.config import EXCEPTION_MSG, MAX_THREAD_WORKERS, BILI_PREVIEW_VIDEO_TITLE, ADMIN_ID, USAGE_TEXT
+from TelegramBot.config import EXCEPTION_MSG, MAX_THREAD_WORKERS, BILI_PREVIEW_VIDEO_TITLE, ADMIN_ID, USAGE_TEXT, \
+    DOUYIN_OVER_SIZE
 from TelegramBot.task_manager import TaskManager
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.utils import MsgSender
@@ -183,8 +184,7 @@ async def generic_command_handler(
         if msg and parse_result.vid:
             await _save_cache_fid(msg, parse_result)
 
-        record.success = True
-        return True
+        return record.success
 
     except Exception as e:
         logger.exception(f"{platform_name}_command 失败: {e}")
@@ -503,6 +503,8 @@ async def _send_quality_selection(sender: MsgSender, result: ParseResult, progre
     # 不再需要存储质量选项，因为使用URL按钮直接跳转
 
     try:
+        if result.size_mb > 50:
+            raise "视频体积超50M"
         item = result.media_items[0] if result.media_items else None
         msg = await sender.send_video(
             video=item.local_path,
@@ -515,17 +517,22 @@ async def _send_quality_selection(sender: MsgSender, result: ParseResult, progre
             progress_msg=progress_msg
         )
         logger.debug("Quality selection message sent successfully")
+        result.success = True
         return msg
     except Exception as e:
         logger.error(f"Failed to send quality selection message with HTML: {e}")
         # Fallback: try without parse_mode
         try:
-            simple_message = f"视频: {result.title or 'Unknown'}\n\n请选择分辨率下载"
+            text = "请选择分辨率下载"
+            # 走到这条分支一般都是 视频超过体积了,如果超体积,告知用户原因
+            if result.size_mb > 50:
+                text = DOUYIN_OVER_SIZE
+            simple_message = f"视频: {result.title or 'Unknown'}\n\n{text}"
             await sender.send(
                 simple_message,
                 reply_markup=reply_markup
             )
             logger.info("Sent fallback quality selection message")
-        except Exception as fallback_error:
-            logger.error(f"Fallback message also failed: {fallback_error}")
-            await sender.send("分辨率选择功能暂时不可用，请重新发送链接")
+            raise Exception
+        except Exception as e:
+            logger.error(f"兜底发送, 保留失败标识,避免原消息被删除{e}")

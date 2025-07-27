@@ -3,6 +3,7 @@ from telegram import Update, ReplyKeyboardRemove
 from telegram.ext import ContextTypes
 from TelegramBot.handlers import bilibili, douyin, music, xiaohongshu, unknow
 from TelegramBot.config import ADMIN_ID, EXCEPTION_MSG
+from TelegramBot.recorder_blacklist import load_blacklist
 from TelegramBot.utils import MsgSender
 import logging
 
@@ -11,6 +12,11 @@ logger = logging.getLogger(__name__)
 
 # 通用 url 处理器，根据 url 自动分发到对应平台
 async def handle_general_url(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    # —— 黑名单拦截 ——
+    if update.effective_user.id in load_blacklist():  # 黑名单 直接忽略
+        return
+
     text = update.effective_message.text.strip()
     platform = ""
     r = True
