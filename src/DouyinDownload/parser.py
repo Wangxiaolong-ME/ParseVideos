@@ -224,12 +224,23 @@ class DouyinParser:
 
     def _parse_audio_options(self, aweme_detail, uri_flag='play_url'):
         music = aweme_detail.get("music")
+
         if music:
+            uri = music.get(uri_flag, {}).get('uri', '')
+            if not uri:
+                log.warning("走兜底获取音频链接")
+                video = aweme_detail.get('video', {})
+                src = video.get('playAddr', [{}])
+                uri = src[0].get('src')
             music_option = AudioOptions(
                 title=music.get('title', '未知'),
                 author=music.get('author', '未知'),
-                uri=music.get(uri_flag, {}).get('uri', '')
+                uri=uri
             )
+            if uri:
+                log.debug("音频链接获取成功")
+            else:
+                log.warning("音频链接获取失败,为空")
             self.audio = music_option
 
     def _parse_video_options(self, detail_json: Dict[str, Any]) -> List[VideoOption]:
