@@ -10,84 +10,98 @@ import logging
 log = logging.getLogger(__name__)
 
 
-async def handle_blacklist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """手动将指定用户加入黑名单。用法：
-       /blacklist <chat_id|@username> [<chat_id|@username> ...]
-    """
+# 公共工具：解析参数 → chat_id
+def _token_to_cid(token: str, uname2cid: dict[str, int]) -> int | None:
+    token = token.lstrip("@").strip()
+    if token.isdigit():
+        return int(token)
+    return uname2cid.get(token)
+
+
+async def handle_blacklist_add_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """用法： /blacklist_add <chat_id|@username> [...]"""
     if update.effective_user.id != ADMIN_ID:
         return
-        # return await update.message.reply_text(
-        #     "无权限，仅管理员可用",
-        #     reply_to_message_id=update.message.message_id,
-        # )
 
     if not context.args:
-        return await update.message.reply_text(
-            "用法：/blacklist <chat_id|@username> ...",
-            reply_to_message_id=update.message.message_id,
-        )
+        return await update.message.reply_text("用法：/blacklist_add <chat_id|@username> ...",
+                                               reply_to_message_id=update.message.message_id)
 
-    # 当前黑名单
     blacklist: list[int] = load_blacklist()
-
-    # 把用户名映射到 chat_id 方便处理
     users = load_users()
-    uname2cid = {v.get("uname"): int(k) for k, v in users.items() if "uname" in v}
+    uname2cid = {v.get("uname"): int(k) for k, v in users.items() if v.get("uname")}
 
-    added: list[int] = []
-    already: list[int] = []
-    unknown: list[str] = []
-    removed: list[int] = []  # 新增：记录成功移除的
-    not_in: list[int] = []  # 新增：记录本就不在黑名单的
+    added, already, unknown = [], [], []
 
     for token in context.args:
-        is_remove = token.startswith("-")  # 前缀 - 代表移除
-        token = token.lstrip("-@").strip()  # 去掉 - 和 @
-        cid: int | None = None
-
-        if token.isdigit():
-            cid = int(token)
-        else:
-            cid = uname2cid.get(token)
-
+        cid = _token_to_cid(token, uname2cid)
         if cid is None:
-            unknown.append(token)
-            continue
-
-        # 移出黑名单
-        if is_remove:
-            if cid in blacklist:
-                blacklist.remove(cid)
-                removed.append(cid)
-                log.info(f"已移除黑名单: {cid}")
-            else:
-                not_in.append(cid)
-            continue
-
-        # 加入黑名单
+            unknown.append(token); continue
         if cid in blacklist:
             already.append(cid)
         else:
-            blacklist.append(cid)
-            added.append(cid)
-            log.info(f"已手动加入黑名单: {cid}")
+            blacklist.append(cid); added.append(cid); log.info(f"加入黑名单: {cid}")
 
-    # 保存
-    if added or removed:
-        blacklist = sorted(set(blacklist))
-        save_blacklist(blacklist)
-
-    # 结果汇报
-    parts: list[str] = []
     if added:
-        parts.append(f"✅ 新增黑名单: {', '.join(map(str, added))}")
-    if already:
-        parts.append(f"⚠ 已在黑名单: {', '.join(map(str, already))}")
-    if unknown:
-        parts.append(f"❓ 未识别: {', '.join(unknown)}")
-    if removed:
-        parts.append(f"✅ 已从黑名单移除: {', '.join(map(str, removed))}")
-    if not_in:
-        parts.append(f"不在黑名单: {', '.join(map(str, not_in))}")
+        save_blacklist(sorted(set(blacklist)))
 
+    parts = []
+    if added:   parts.append(f"✅ 已加入: {', '.join(map(str, added))}")
+    if already: parts.append(f"⚠ 已在黑名单: {', '.join(map(str, already))}")
+    if unknown: parts.append(f"❓ 未识别: {', '.join(unknown)}")
     await update.message.reply_text("\n".join(parts))
+
+
+async def handle_blacklist_remove_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """用法： /blacklist_remove <chat_id|@username> [...]"""
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    if not context.args:
+        return await update.message.reply_text("用法：/blacklist_remove <chat_id|@username> ...",
+                                               reply_to_message_id=update.message.message_id)
+
+    blacklist: list[int] = load_blacklist()
+    users = load_users()
+    uname2cid = {v.get("uname"): int(k) for k, v in users.items() if v.get("uname")}
+
+    removed, not_in, unknown = [], [], []
+
+    for token in context.args:
+        cid = _token_to_cid(token, uname2cid)
+        if cid is None:
+            unknown.append(token); continue
+        if cid in blacklist:
+            blacklist.remove(cid); removed.append(cid); log.info(f"移除黑名单: {cid}")
+        else:
+            not_in.append(cid)
+
+    if removed:
+        save_blacklist(sorted(set(blacklist)))
+
+    parts = []
+    if removed: parts.append(f"✅ 已移除: {', '.join(map(str, removed))}")
+    if not_in:  parts.append(f"ℹ 不在黑名单: {', '.join(map(str, not_in))}")
+    if unknown: parts.append(f"❓ 未识别: {', '.join(unknown)}")
+    await update.message.reply_text("\n".join(parts))
+
+
+async def handle_blacklist_show_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """用法： /blacklist_show   —— 列出当前黑名单"""
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    blacklist: list[int] = load_blacklist()
+    if not blacklist:
+        return await update.message.reply_text("当前黑名单为空")
+
+    users = load_users()
+    uname2info = {int(k): (v.get("uname", ""), v.get("full_name", "")) for k, v in users.items()}
+
+    lines = []
+    for cid in blacklist:
+        uname, full_name = uname2info.get(cid, ("", ""))
+        tag = f"{full_name} (@{uname})" if uname or full_name else "未知用户"
+        lines.append(f"{cid}  {tag}")
+
+    await update.message.reply_text("📋 当前黑名单：\n" + "\n".join(lines))

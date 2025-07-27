@@ -43,7 +43,10 @@ def main() -> None:
     # 注册命令
     application.add_handler(CommandHandler("start", _start))
 
-    application.add_handler(CommandHandler("blacklist", blacklist.handle_blacklist_command))
+    application.add_handler(CommandHandler("blacklist_add", blacklist.handle_blacklist_add_command))
+    application.add_handler(CommandHandler("blacklist_remove", blacklist.handle_blacklist_remove_command))
+    application.add_handler(CommandHandler("blacklist_show", blacklist.handle_blacklist_show_command))
+
     application.add_handler(CommandHandler("notify", notify.handle_notify_command))
     application.add_handler(CommandHandler("status", status.handle_status_command))
 
