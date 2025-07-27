@@ -531,7 +531,8 @@ async def _send_quality_selection(sender: MsgSender, result: ParseResult, progre
             simple_message = f"视频: {result.title or 'Unknown'}\n\n{text}"
             await sender.send(
                 simple_message,
-                reply_markup=reply_markup
+                reply_markup=reply_markup,
+                reply=False
             )
             logger.info("Sent fallback quality selection message")
             raise Exception
