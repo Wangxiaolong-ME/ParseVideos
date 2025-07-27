@@ -150,7 +150,8 @@ async def generic_command_handler(
         if not parse_result.success:
             logger.info(f"解析失败，发送异常消息, 异常详情:{parse_result.error_message}")
             error_msg = parse_result.error_message or EXCEPTION_MSG
-            await sender.send(EXCEPTION_MSG)
+            await progress_msg.edit_text(EXCEPTION_MSG)
+            # await sender.send(EXCEPTION_MSG)
             record.exception = error_msg
             return
 
