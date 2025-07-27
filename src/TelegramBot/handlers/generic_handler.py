@@ -117,7 +117,7 @@ async def generic_command_handler(
             if file_id := cache_get(vid):
                 logger.info(f"命中 file_id 缓存 ({vid})")
                 try:
-                    await _send_by_file_id(sender, file_id, title, update.effective_message.id)
+                    await _send_by_file_id(sender, file_id, title)
                     record.fid[vid] = file_id
                     record.to_fid = True
                     record.success = True
@@ -257,11 +257,11 @@ def _extract_file_id(msg: Message) -> str | None:
     return None
 
 
-async def _send_by_file_id(sender: MsgSender, file_id: str or list, caption: str, reply_id: int = None):
+async def _send_by_file_id(sender: MsgSender, file_id: str or list, caption: str):
     """使用缓存的file_id发送 (此处可以扩展支持不同类型)"""
     # 如果是单个 file_id，直接发送文档
     if isinstance(file_id, str):
-        return await sender.send_document(file_id, caption=caption)
+        return await sender.send_document(file_id, caption=caption, parse_mode=ParseMode.HTML)
 
         # 如果是图集，遍历每个 file_id 发送
     elif isinstance(file_id, list):
@@ -270,10 +270,10 @@ async def _send_by_file_id(sender: MsgSender, file_id: str or list, caption: str
             # 去掉前缀并添加到 media_group_items 中
             if file.startswith('VIDEO'):
                 file = file[len('VIDEO'):]  # 去掉 'VIDEO_' 前缀
-                media_group_items.append(InputMediaVideo(media=file, caption=caption))
+                media_group_items.append(InputMediaVideo(media=file, caption=caption, parse_mode=ParseMode.HTML))
             elif file.startswith('IMAGE'):
                 file = file[len('IMAGE'):]  # 去掉 'IMAGE_' 前缀
-                media_group_items.append(InputMediaPhoto(media=file, caption=caption))
+                media_group_items.append(InputMediaPhoto(media=file, caption=caption, parse_mode=ParseMode.HTML))
 
         # 如果媒体组的数量超过10个，分批发送
         media_group_batches = [media_group_items[i:i + 10] for i in range(0, len(media_group_items), 10)]
@@ -345,7 +345,7 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
                 # 如果是首个视频且有背景音乐链接，就在标题下方加上“背景乐下载”超链接
                 if i == 0 and getattr(result, 'audio_uri', None):
                     # 使用 HTML 格式：<a href="链接">文本</a>
-                    music_link = f'<b>🎧<a href="{result.audio_uri}">下载背景乐</a></b>'
+                    music_link = f'<b>🎧<a href="{result.audio_uri}">下载背景乐 {result.audio_title}</a></b>'
                     # 如果已经有标题，就换行追加；否则直接使用链接
                     caption_text = f"{base_caption}\n\n{music_link}" if base_caption else music_link
                 else:
@@ -446,7 +446,7 @@ async def _send_quality_selection(sender: MsgSender, result: ParseResult, progre
 
     # 构造音频下载按钮
     if result.audio_uri:
-        audio_btn = InlineKeyboardButton(text="下载音频 MP3", url=result.audio_uri)
+        audio_btn = InlineKeyboardButton(text=f"下载背景乐 {result.audio_title}", url=result.audio_uri)
 
         # 如果最后一行不足 2 个，就直接 append 到最后一行
         if keyboard and len(keyboard[-1]) < 2:

@@ -61,7 +61,7 @@ def patch_bili_dependencies(monkeypatch, tmp_path):
 
 def test_bilibili_parser_preview(tmp_path):
     """preview_video=True 的分支应当返回 video 媒体项"""
-    url = "https://bilibili.com/preview"
+    url = "https://www.bilibili.com/video/BV1kWgkzAE2u"
     parser = BilibiliParser(url, save_dir=Path(tmp_path))
     res: ParseResult = parser.parse()
 

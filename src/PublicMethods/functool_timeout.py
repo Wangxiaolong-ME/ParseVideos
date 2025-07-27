@@ -85,7 +85,7 @@ def retry_on_timeout_async(timeout_sec: float, retries: int):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
             last_exc: Exception | None = None
-            for attempt in range(1, retries + 1):
+            for attempt in range(1, retries + 2):
                 try:
                     # asyncio.wait_for 会在协程超过 timeout_sec 秒后抛 asyncio.TimeoutError
                     return await asyncio.wait_for(func(*args, **kwargs), timeout=timeout_sec)

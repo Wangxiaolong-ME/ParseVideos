@@ -6,11 +6,11 @@ import logging
 import os.path
 from pathlib import Path
 
-from pywebio.input import SELECT
+from PublicMethods.tools import check_file_size
 
 from .base import BaseParser, ParseResult
 from XiaoHongShu.xhs_parser import XiaohongshuPost
-from TelegramBot.config import XIAOHONGSHU_COOKIE
+from TelegramBot.config import XIAOHONGSHU_COOKIE, XIAOHONGSHU_OVER_SIZE
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +51,10 @@ class XiaohongshuParser(BaseParser):
             for video in self.post.videos:
                 if not os.path.exists(video):
                     logger.warning(f"文件不存在 {video}")
+                    continue
+                if not check_file_size(video, 50):
+                    logger.warning(f"视频体积超过50MB,无法发送!")
+                    self.result.title += f"\n{XIAOHONGSHU_OVER_SIZE}"
                     continue
                 self.result.add_media(local_path=video, file_type='video')
             for image in self.post.images:

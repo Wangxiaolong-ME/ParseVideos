@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Union, IO, List, Optional, Any, Coroutine
 from telegram import InputFile, Message, Update, ReactionTypeEmoji, ReactionTypeCustomEmoji, InputMediaVideo, \
     InputMediaPhoto
-from telegram.constants import ChatAction
+from telegram.constants import ChatAction, ParseMode
 
 import logging
 
@@ -183,6 +183,7 @@ class MsgSender:
             send_kwargs = {
                 "chat_id": self._chat_id,
                 "media": media,
+                "parse_mode":ParseMode.HTML
             }
             if reply_to_message_id:
                 send_kwargs["reply_to_message_id"] = reply_to_message_id

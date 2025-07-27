@@ -24,9 +24,9 @@ log.debug(f"TELEGRAM_TOKEN={TELEGRAM_TOKEN_ENV[:10]}*********")
 ADMIN_ID = 6040522700  # 管理员 TG ID
 ALLOWED_USERS = {ADMIN_ID}  # 白名单用户，可扩展为数据库
 GENERIC_HANDLER_UPLOAD_TIMEOUT = [35, 2]  # 主流程中上传超时
-SEND_TEXT_TIMEOUT = [10, 1]
+SEND_TEXT_TIMEOUT = [10, 2]
 SEND_VIDEO_TIMEOUT = [60, 2]
-SEND_MEDIA_GROUP_TIMEOUT = [20, 1]
+SEND_MEDIA_GROUP_TIMEOUT = [20, 2]
 USAGE_TEXT = "使用方法: 发送视频链接开始使用\n例：https://v.douyin.com/7kSRzFPFob4/"
 
 # —————————— TelegramBot配置 ——————————
@@ -62,6 +62,7 @@ BILI_PREVIEW_VIDEO_TITLE = "⚠️注意：该视频为私人视频或会员视�
 XIAOHONGSHU_SAVE_DIR = BASE_DIR / "xhs_downloads"
 XIAOHONGSHU_COOKIE = {'web_session': os.getenv('WEB_SESSION', '')}
 log.debug(f"web_session={XIAOHONGSHU_COOKIE['web_session'][:10]}*********")
+XIAOHONGSHU_OVER_SIZE="⚠️注意：视频体积超过50M无法发送"
 # —————————— 小红书 ——————————
 
 

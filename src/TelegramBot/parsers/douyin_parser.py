@@ -64,6 +64,7 @@ class DouyinParser(BaseParser):
     async def _parse_audio(self, post):
         if post.audio:
             self.result.audio_uri = post.audio.uri
+            self.result.audio_title = post.audio.title
 
     async def _parse_video(self, post: DouyinPost) -> ParseResult:
         """解析视频并提供多分辨率选项"""
