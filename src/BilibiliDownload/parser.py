@@ -109,7 +109,7 @@ class BilibiliParser:
                         # 去除xxx=开头
                         del_text = re.search(target_script_regex, text).group()
                         final_text = text.replace(del_text, '')
-                        log.debug(f"正则拿到json_str:{final_text}")
+                        # log.debug(f"正则拿到json_str:{final_text}")
                         try:
                             target_dict = self._try_parse_json(final_text)
                             return target_dict

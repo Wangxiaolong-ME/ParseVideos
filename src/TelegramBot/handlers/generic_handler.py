@@ -7,13 +7,14 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List, Union
 
-from telegram import Update, Message, InputMediaPhoto, InputMediaVideo
+from telegram import Update, Message, InputMediaPhoto, InputMediaVideo, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
 from telegram.ext import ContextTypes
+from telegram.helpers import escape_markdown
 
 from TelegramBot.cleaner import purge_old_files
-from TelegramBot.config import EXCEPTION_MSG, MAX_THREAD_WORKERS, BILI_PREVIEW_VIDEO_TITLE, ADMIN_ID
+from TelegramBot.config import EXCEPTION_MSG, MAX_THREAD_WORKERS, BILI_PREVIEW_VIDEO_TITLE, ADMIN_ID, USAGE_TEXT
 from TelegramBot.task_manager import TaskManager
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.utils import MsgSender
@@ -89,12 +90,13 @@ async def generic_command_handler(
     await sender.react("👀")
 
     # ---- 2. 解析输入和准备 ----
+    e = ''
     try:
         if is_command and not context.args:
             await sender.send(f"使用方法: /{platform_name} <链接>")
             return
         if not parser_class:
-            await sender.send(f"使用方法: 发送视频链接开始使用\n例：https://v.douyin.com/7kSRzFPFob4/")
+            await sender.send(USAGE_TEXT)
             return
 
         progress_msg = await sender.send("正在处理中...")  # 发送一个占位消息
@@ -119,7 +121,7 @@ async def generic_command_handler(
                     record.fid[vid] = file_id
                     record.to_fid = True
                     record.success = True
-                    return
+                    return True
                 except BadRequest as e:
                     logger.warning(f"file_id失效，清理并回退到上传: {e}")
                     cache_put(vid, None)
@@ -139,6 +141,11 @@ async def generic_command_handler(
         _sync_record_with_result(record, parse_result)
 
         # ---- 4. 根据解析结果发送消息 ----
+        logger.info(f"解析结果检查: success={parse_result.success}, content_type={parse_result.content_type}")
+        logger.info(
+            f"needs_quality_selection={parse_result.needs_quality_selection}, quality_options={len(parse_result.quality_options) if parse_result.quality_options else 0}")
+        logger.info(f"media_items={len(parse_result.media_items) if parse_result.media_items else 0}")
+
         if not parse_result.success:
             logger.info(f"解析失败，发送异常消息, 异常详情:{parse_result.error_message}")
             error_msg = parse_result.error_message or EXCEPTION_MSG
@@ -155,32 +162,29 @@ async def generic_command_handler(
                 disable_web_page_preview=True
             )
             record.success = True
-            return
+            return True
 
-        # ---- 5. 上传文件并缓存 file_id ----
-        logger.info(f"_upload_and_send 上传文件并缓存 file_id")
-        msg = await _upload_and_send(sender, parse_result, progress_msg, update.effective_message.id)
+        # 处理需要质量选择的情况 (抖音多分辨率)
+        # 增加额外检查：只要有quality_options就显示按钮
+        if (parse_result.needs_quality_selection and parse_result.quality_options) or \
+                (parse_result.quality_options and len(parse_result.quality_options) > 0):
+            logger.info(f"处理抖音多分辨率选择")
+            logger.info(f"预览链接: {parse_result.preview_url}")
+            logger.info(f"质量选项数量: {len(parse_result.quality_options)}")
+
+            # 直接显示分辨率选择按钮（标题包含预览链接）
+            msg = await _send_quality_selection(sender, parse_result, progress_msg)
+        else:
+            # ---- 5. 上传文件并缓存 file_id ----
+            logger.info(f"_upload_and_send 上传文件并缓存 file_id")
+            msg = await _upload_and_send(sender, parse_result, progress_msg)
 
         # 缓存新的 file_id
         if msg and parse_result.vid:
-            logging.debug(f"缓存fid...")
-            # 对于图集，Telegram返回一个消息列表
-            # 目前只缓存单视频/音频的file_id
-            if parse_result.content_type in ['video', 'audio']:
-                if file_id := _extract_file_id(msg):
-                    cache_put(parse_result.vid, file_id)
-                    logger.debug(f"记录新的 file_id 缓存 -> {parse_result.vid}")
-            # 图集消息：Telegram 返回的是消息列表
-            elif parse_result.content_type == 'image_gallery':
-                logging.debug(f"写入图集fid...")
-                if isinstance(msg, list):
-                    album_file_ids = _build_image_gallery_cache_fid(msg)
-                    # 使用图集的唯一 ID 缓存整个 file_id 列表，方便后续取用
-                    if album_file_ids:
-                        cache_put(parse_result.vid, album_file_ids)
-                        logger.debug(f"记录新的图集 file_id 列表 -> {parse_result.vid}: {album_file_ids}")
+            await _save_cache_fid(msg, parse_result)
 
         record.success = True
+        return True
 
     except Exception as e:
         logger.exception(f"{platform_name}_command 失败: {e}")
@@ -189,12 +193,32 @@ async def generic_command_handler(
     finally:
         # ---- 6. 清理和收尾 ----
         try:
-            await progress_msg.delete()
+            if record.success:
+                await progress_msg.delete()
         except Exception:
             logger.warning(f"占位消息已删除，无需再次删除")
         task_manager.release(uid)
         _record_user_parse(record)  # 记录日志
         logger.info(f"{platform_name}_command finished.")
+
+
+async def _save_cache_fid(msg: Message, parse_result: ParseResult):
+    logging.debug(f"缓存fid...")
+    # 对于图集，Telegram返回一个消息列表
+    # 目前只缓存单视频/音频的file_id
+    if parse_result.content_type in ['video', 'audio']:
+        if file_id := _extract_file_id(msg):
+            cache_put(parse_result.vid, file_id)
+            logger.debug(f"记录新的 file_id 缓存 -> {parse_result.vid}")
+    # 图集消息：Telegram 返回的是消息列表
+    elif parse_result.content_type == 'image_gallery':
+        logging.debug(f"写入图集fid...")
+        if isinstance(msg, list):
+            album_file_ids = _build_image_gallery_cache_fid(msg)
+            # 使用图集的唯一 ID 缓存整个 file_id 列表，方便后续取用
+            if album_file_ids:
+                cache_put(parse_result.vid, album_file_ids)
+                logger.debug(f"记录新的图集 file_id 列表 -> {parse_result.vid}: {album_file_ids}")
 
 
 # 生成图集的缓存ID列表,视频前缀VIDEO,图片前缀IMAGE
@@ -256,10 +280,7 @@ async def _send_by_file_id(sender: MsgSender, file_id: str or list, caption: str
 
         all_sent_messages = []
         for idx, batch in enumerate(media_group_batches):
-            parms = {}
-            if idx == 0:    # 只有第一组发送时回复原消息
-                parms["reply_to_message_id"] = reply_id
-            sent_messages = await sender.send_media_group(media=batch, **parms)
+            sent_messages = await sender.send_media_group(media=batch)
             all_sent_messages.extend(sent_messages)
 
         return all_sent_messages  # 返回所有批次的消息
@@ -275,7 +296,7 @@ def _handle_special_field(result: ParseResult):
         result.title = f"{result.title}\n{BILI_PREVIEW_VIDEO_TITLE}"
 
 
-async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg: Message, reply_to_id: int):
+async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg: Message):
     """根据内容类型上传并发送文件"""
     content_type = result.content_type
 
@@ -320,7 +341,15 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
                 file_handles.append(f)
 
                 # 只有媒体集中的第一个项目才附带标题
-                caption_text = result.title if i == 0 else None
+                base_caption = result.title if i == 0 else None
+                # 如果是首个视频且有背景音乐链接，就在标题下方加上“背景乐下载”超链接
+                if i == 0 and getattr(result, 'audio_uri', None):
+                    # 使用 HTML 格式：<a href="链接">文本</a>
+                    music_link = f'<b>🎧<a href="{result.audio_uri}">下载背景乐</a></b>'
+                    # 如果已经有标题，就换行追加；否则直接使用链接
+                    caption_text = f"{base_caption}\n\n{music_link}" if base_caption else music_link
+                else:
+                    caption_text = base_caption
 
                 # 【核心逻辑】根据 media_items 中的 file_type 判断是创建视频还是图片对象
                 if item.file_type == 'video':
@@ -329,6 +358,7 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
                         InputMediaVideo(
                             media=f,
                             caption=caption_text,
+                            parse_mode=ParseMode.HTML,
                             width=item.width,
                             height=item.height,
                             duration=item.duration
@@ -340,7 +370,8 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
                     media_group_items.append(
                         InputMediaPhoto(
                             media=f,
-                            caption=caption_text
+                            caption=caption_text,
+                            parse_mode=ParseMode.HTML,
                         )
                     )
                     logger.debug(f"向媒体集添加图片: {item.local_path}")
@@ -357,7 +388,7 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
                 result = await sender.send_media_group(
                     media=chunk,
                     progress_msg=progress_msg,
-                    reply_to_message_id=reply_to_id
+                    parse_mode=ParseMode.HTML,
                 )
                 all_results.extend(result)
             logger.debug("所有分片发送完毕，共发送媒体组 %d 组。", (len(media_group_items) + 9) // 10)
@@ -373,3 +404,128 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
     else:
         await progress_msg.edit_text("无法处理的媒体类型或没有媒体文件。")
         return None
+
+
+async def _send_quality_selection(sender: MsgSender, result: ParseResult, progress_msg: Message):
+    """发送分辨率选择按钮"""
+    if not result.quality_options:
+        await sender.send("没有可用的分辨率选项")
+        return
+
+    logger.debug(f"Sending quality selection for video: {result.vid}")
+    logger.debug(f"Title: {repr(result.title)}")
+    logger.debug(f"Quality options count: {len(result.quality_options)}")
+
+    # 按分辨率降序排列，50M以内的放在前面
+    default_options = [opt for opt in result.quality_options if opt.is_default]
+    other_options = [opt for opt in result.quality_options if not opt.is_default]
+
+    # 合并选项：默认选项在前，其他按分辨率降序
+    sorted_options = default_options + sorted(other_options, key=lambda x: x.resolution, reverse=True)
+
+    # 构建内联键盘按钮，每行2个
+    keyboard = []
+    logger.debug(f"开始构建URL按钮，排序后选项: {len(sorted_options)}")
+
+    for i in range(0, len(sorted_options), 2):
+        row = []
+        for j in range(2):
+            if i + j < len(sorted_options):
+                option = sorted_options[i + j]
+                # 按钮文本格式：分辨率 + 文件大小
+                button_text = f"{option.resolution}p"
+                if option.size_mb:
+                    button_text += f" ({option.size_mb:.1f}MB)"
+                if option.is_default:
+                    button_text = f"⭐ {button_text}"  # 默认选项加星标
+
+                # 使用URL按钮直接跳转到下载链接
+                logger.debug(f"创建URL按钮: {button_text} -> {option.download_url}")
+                row.append(InlineKeyboardButton(text=button_text, url=option.download_url))
+        keyboard.append(row)
+
+    # 构造音频下载按钮
+    if result.audio_uri:
+        audio_btn = InlineKeyboardButton(text="下载音频 MP3", url=result.audio_uri)
+
+        # 如果最后一行不足 2 个，就直接 append 到最后一行
+        if keyboard and len(keyboard[-1]) < 2:
+            keyboard[-1].append(audio_btn)
+        else:
+            # 否则新起一行，只放音频按钮
+            keyboard.append([audio_btn])
+    logger.debug(f"共创建 {len(keyboard)} 行按钮")
+
+    # URL按钮不需要取消按钮
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # 发送选择消息 - 使用HTML格式并进行HTML转义
+    import html
+    try:
+        title = result.title or '抖音视频'
+        safe_title = html.escape(title)
+        logger.debug(f"Original title: {repr(title)}")
+        logger.debug(f"Escaped title: {repr(safe_title)}")
+
+        # 构建标题，如果有预览链接则在🎬处添加链接
+        if result.preview_url:
+            # 有预览链接，标题变成可点击链接
+            message_text = f"<b>{safe_title}</b>"
+            # message_text += "👆 点击🎬预览视频\n\n"
+            logger.debug(f"添加预览链接到标题: {result.preview_url}")
+        else:
+            # 没有预览链接，普通标题
+            message_text = f"🎬 <b>{safe_title}</b>"
+
+        # message_text += "📱 点击下方按钮选择分辨率下载：\n"
+        # 显示推荐选项信息
+        # if default_options:
+        #     safe_quality_name = html.escape(default_options[0].quality_name)
+        #     if result.preview_url:
+        #         message_text += f"⭐ 预览分辨率：{safe_quality_name}\n"
+        #     else:
+        #         message_text += f"⭐ 推荐分辨率：{safe_quality_name}\n"
+        #     logger.debug(f"Default quality: {repr(safe_quality_name)}")
+
+        # message_text += f"\n📱 共 {len(result.quality_options)} 个分辨率可选"
+        logger.debug(f"Final message length: {len(message_text)}")
+
+    except Exception as e:
+        logger.error(f"Error formatting quality selection message: {e}")
+        # Fallback to simple message without HTML formatting
+        message_text = f"视频标题: {result.title or 'Unknown'}\n\n"
+        message_text += "请选择要下载的视频分辨率：\n"
+        if default_options:
+            message_text += f"推荐：{default_options[0].quality_name} (已预览)\n"
+        message_text += f"\n共找到 {len(result.quality_options)} 个分辨率选项"
+
+    # 不再需要存储质量选项，因为使用URL按钮直接跳转
+
+    try:
+        item = result.media_items[0] if result.media_items else None
+        msg = await sender.send_video(
+            video=item.local_path,
+            caption=message_text,
+            reply_markup=reply_markup,
+            parse_mode=ParseMode.HTML,
+            duration=item.duration,
+            width=item.width,
+            height=item.height,
+            progress_msg=progress_msg
+        )
+        logger.debug("Quality selection message sent successfully")
+        return msg
+    except Exception as e:
+        logger.error(f"Failed to send quality selection message with HTML: {e}")
+        # Fallback: try without parse_mode
+        try:
+            simple_message = f"视频: {result.title or 'Unknown'}\n\n请选择分辨率下载"
+            await sender.send(
+                simple_message,
+                reply_markup=reply_markup
+            )
+            logger.info("Sent fallback quality selection message")
+        except Exception as fallback_error:
+            logger.error(f"Fallback message also failed: {fallback_error}")
+            await sender.send("分辨率选择功能暂时不可用，请重新发送链接")

@@ -25,8 +25,9 @@ ADMIN_ID = 6040522700  # 管理员 TG ID
 ALLOWED_USERS = {ADMIN_ID}  # 白名单用户，可扩展为数据库
 GENERIC_HANDLER_UPLOAD_TIMEOUT = [35, 2]  # 主流程中上传超时
 SEND_TEXT_TIMEOUT = [10, 1]
-SEND_VIDEO_TIMEOUT = [35, 2]
+SEND_VIDEO_TIMEOUT = [60, 2]
 SEND_MEDIA_GROUP_TIMEOUT = [20, 1]
+USAGE_TEXT = "使用方法: 发送视频链接开始使用\n例：https://v.douyin.com/7kSRzFPFob4/"
 
 # —————————— TelegramBot配置 ——————————
 
@@ -34,6 +35,7 @@ SEND_MEDIA_GROUP_TIMEOUT = [20, 1]
 # —————————— 抖音配置 ——————————
 
 DOWNLOAD_TIMEOUT = 20  # 多线程下载超时 时间
+PREVIEW_SIZE = 20   # 预览视频大小优先选取
 DOUYIN_DOWNLOAD_THREADS = 8  # 抖音下载线程
 DOUYIN_SESSION_COUNTS = 3  # 多线程下载时session池数量
 DOUYIN_SAVE_DIR = BASE_DIR / "dy_downloads"

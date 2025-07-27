@@ -14,12 +14,13 @@ from playwright.async_api import Page
 
 from DouyinDownload.config import AWEME_DETAIL_API_URL, PLAYWRIGHT_TIMEOUT, IMAGES_NEED_COOKIES, DOWNLOAD_HEADERS
 from DouyinDownload.exceptions import URLExtractionError, ParseError
-from DouyinDownload.models import VideoOption, ImageOptions
+from DouyinDownload.models import VideoOption, ImageOptions, AudioOptions
 import logging
 
 from PublicMethods.tools import prepared_to_curl
 from PublicMethods.playwrigth_manager import PlaywrightManager
 from PublicMethods.functool_timeout import retry_on_timeout_async
+
 log = logging.getLogger(__name__)
 
 
@@ -28,6 +29,9 @@ class DouyinParser:
     使用 Playwright 模拟浏览器行为，拦截API请求来获取抖音无水印视频数据。
     Uses Playwright to simulate browser behavior and intercept API requests to get Douyin watermark-free video data.
     """
+
+    def __init__(self):
+        self.audio: AudioOptions
 
     @staticmethod
     def extract_short_url(text: str) -> str:
@@ -147,7 +151,7 @@ class DouyinParser:
             INTERCEPT_RULES = [
                 # INTERCEPT_SCRIPT_ALL,
                 ("stylesheet", None),
-                ("css" , None),
+                ("css", None),
                 ("image", None),
                 ("png", None),
                 ("gif", None),
@@ -163,6 +167,7 @@ class DouyinParser:
                 ("xhr", target_api),
                 ("script", "obj/security-secsdk"),
             ]
+
             async def _route_handler(route):
                 # 如果页面已关闭，则跳过 abort
                 if page.is_closed():
@@ -217,6 +222,16 @@ class DouyinParser:
             await page.unroute_all(behavior="ignoreErrors")
             log.debug(f"_intercept_detail_api 核心拦截逻辑 总耗时 {round(time.time() - g_start, 2)}")
 
+    def _parse_audio_options(self, aweme_detail, uri_flag='play_url'):
+        music = aweme_detail.get("music")
+        if music:
+            music_option = AudioOptions(
+                title=music.get('title', '未知'),
+                author=music.get('author', '未知'),
+                uri=music.get(uri_flag, {}).get('uri', '')
+            )
+            self.audio = music_option
+
     def _parse_video_options(self, detail_json: Dict[str, Any]) -> List[VideoOption]:
         """
         从API的JSON数据中解析出所有可用的视频下载选项。
@@ -232,6 +247,8 @@ class DouyinParser:
         # log.debug(f"DouYin_aweme_detail 原始数据: {aweme_detail}")
         duration = aweme_detail.get("duration")
 
+        self._parse_audio_options(aweme_detail)
+
         # 过滤掉DASH格式，它需要特定的播放器，不适合直接下载合并
         # Filter out DASH format, which requires a specific player and is not suitable for direct download and merge
         options = []
@@ -240,7 +257,7 @@ class DouyinParser:
                 continue
 
             gear_name = item.get("gear_name", "")
-            res_match = re.search(r'(\d+)', gear_name)
+            res_match = re.search(r'(540|720|1080|1440|2160|(?<=_)4(?=_))', gear_name)
             resolution = int(res_match.group(1)) if res_match else 0
 
             # 抖音的 '4' 分辨率标识通常代表4K
@@ -283,6 +300,8 @@ class DouyinParser:
         author_info = aweme_detail.get("authorInfo")
         images = aweme_detail.get("images")
 
+        self._parse_audio_options(aweme_detail, "playUrl")
+
         """
                 images 结构示例,-1是效果最好的jpg
                 "images": [
@@ -320,7 +339,8 @@ class DouyinParser:
         page = await context.new_page()
         log.debug(f"short url:{short_url}")
         try:
-            await page.route("**/*{stylesheet,css,image,media,ping,front,websocket,preflight}", lambda route: route.abort())
+            await page.route("**/*{stylesheet,css,image,media,ping,front,websocket,preflight}",
+                             lambda route: route.abort())
             await page.goto(short_url)
             cookies = await self._get_cookies(page, IMAGES_NEED_COOKIES)
             resp = requests.get(short_url, cookies=cookies, headers=DOWNLOAD_HEADERS)

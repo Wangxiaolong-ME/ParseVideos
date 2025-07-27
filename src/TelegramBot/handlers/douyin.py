@@ -22,7 +22,7 @@ async def douyin_command(
     """
     logger.info("douyin_command (refactored) start >>>")
 
-    await generic_command_handler(
+    return await generic_command_handler(
         update=update,
         context=context,
         parser_class=DouyinParser,

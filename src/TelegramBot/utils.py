@@ -1,4 +1,5 @@
 # src/TelegramBot/utils.py
+import asyncio
 import time
 from pathlib import Path
 from typing import Union, IO, List, Optional, Any, Coroutine
@@ -113,7 +114,7 @@ class MsgSender:
             document: Union[str, Path, IO, InputFile],
             *,
             caption: str | None = None,
-            reply: bool = True,
+            reply: bool = False,
             **kwargs,
     ) -> Message:
         """
@@ -214,7 +215,7 @@ class MsgSender:
             duration: int | None = None,
             width: int | None = None,
             height: int | None = None,
-            reply: bool = True,
+            reply: bool = False,
             supports_streaming: bool = True,
             **kwargs,
     ) -> Message:
@@ -239,7 +240,8 @@ class MsgSender:
         log.debug(f"视频上传参数 >>> duration:{format_duration(duration)}, width:{width}, height:{height}")
         log.debug("开始上传，reply_video 视频开始上传中......")
         # progress_msg = await self.send("视频上传中，请稍等")
-        await progress_msg.edit_text("视频上传中....")
+        if progress_msg:
+            await progress_msg.edit_text("视频上传中....")
         await self.upload()  # 上传状态
         try:
             msg: Message = await self.msg.reply_video(
@@ -255,7 +257,10 @@ class MsgSender:
                 **kwargs,
             )
         finally:
-            await progress_msg.delete()
+            try:
+                await progress_msg.delete()
+            except Exception:
+                log.warning("占位消息已删除,无需删除")
             if opened_file:
                 opened_file.close()
         log.debug("上传完成，reply_video 耗时 %.2f s", time.perf_counter() - start)

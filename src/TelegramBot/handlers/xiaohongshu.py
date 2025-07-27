@@ -21,7 +21,7 @@ async def xhs_command(
     """
     logger.info("xhs_command (refactored) start >>>")
 
-    await generic_command_handler(
+    return await generic_command_handler(
         update=update,
         context=context,
         parser_class=XiaohongshuParser,

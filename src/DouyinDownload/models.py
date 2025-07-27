@@ -50,6 +50,13 @@ class ImageOptions:
     images: Optional[List[Dict[str, Any]]]
 
 @dataclass
+class AudioOptions:
+    title: str
+    author: str
+    uri: str
+
+
+@dataclass
 class Image:
     width: int
     height: int

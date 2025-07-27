@@ -22,7 +22,7 @@ async def bilibili_command(
     """
     logger.info("bilibili_command (refactored) start >>>")
 
-    await generic_command_handler(
+    return await generic_command_handler(
         update=update,
         context=context,
         parser_class=BilibiliParser,

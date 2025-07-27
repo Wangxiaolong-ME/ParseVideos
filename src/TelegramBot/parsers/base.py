@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Union, Literal, Optional
 
+from DouyinDownload.models import VideoOption,AudioOptions
+
 logger = logging.getLogger(__name__)
 
 # 定义内容类型，便于通用处理器判断如何发送
@@ -20,6 +22,16 @@ class MediaItem:
     width: int | None = None
     height: int | None = None
     duration: int | None = None
+
+
+@dataclass
+class VideoQualityOption(VideoOption):
+    """视频质量选项，用于按钮选择"""
+    resolution: int  # 分辨率 (720, 1080等)
+    quality_name: str  # 显示名 (720p, 1080p等)
+    download_url: str  # 下载链接
+    size_mb: float  # 文件大小
+    is_default: bool = False  # 是否默认选项（50M以内头部展示）
 
 
 @dataclass
@@ -39,11 +51,17 @@ class ParseResult:
     original_url: str | None = None  # 原始输入链接
     download_url: str | None = None  # 解析出的下载链接 (用于日志)
     size_mb: float | None = None  # 文件大小
+    audio_uri : str | None = None   # 音乐直链
 
     # ---- 特殊情况字段 ----
     text_message: str | None = None  # 如果需要直接发送文本消息（例如 >50MB 的链接）
     bili_preview_video: bool | None = None  # B站私人视频或会员视频
     download_url_list: List[str] = field(default_factory=list)   # 多个下载链接列表
+    
+    # ---- 多分辨率选择字段 ----
+    quality_options: List[VideoQualityOption] = field(default_factory=list)  # 视频质量选项列表
+    needs_quality_selection: bool = False  # 是否需要用户选择分辨率
+    preview_url: str | None = None  # ≤20MB视频的预览链接，用于TG自动预览
 
     # ---- 异常信息 ----
     error_message: str | None = None

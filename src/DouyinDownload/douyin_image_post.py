@@ -14,7 +14,7 @@ import requests
 
 from PublicMethods.m_download import Downloader
 from DouyinDownload.exceptions import ParseError
-from DouyinDownload.models import ImageOptions, Image
+from DouyinDownload.models import ImageOptions, Image, AudioOptions
 from DouyinDownload.parser import DouyinParser
 from DouyinDownload.config import DOWNLOAD_HEADERS
 from TelegramBot.config import DOUYIN_DOWNLOAD_THREADS, DOUYIN_SESSION_COUNTS, DOUYIN_SAVE_DIR
@@ -38,6 +38,7 @@ class DouyinImagePost:
     def __init__(self, short_url_text: str, save_dir: str = DOUYIN_SAVE_DIR, trust_env: bool = False,
                  threads: int = DOUYIN_DOWNLOAD_THREADS):
         self.parser = DouyinParser()
+        self.audio = AudioOptions
         self.short_url = self.parser.extract_short_url(short_url_text)
         self.save_dir = save_dir
 
@@ -62,6 +63,8 @@ class DouyinImagePost:
             self.aweme_id = self.aweme_detail.aweme_id
             # 根据ID用于文件命名
             self.processed_image_title = f"douyin_image_{self.aweme_id}"
+
+            self.audio = self.parser.audio
 
             log.debug(f"获取图片详情成功！标题 (Success! Title): '{self.processed_image_title}'. "
                       f"共找到 {len(self.aweme_detail.images)} 张图片 (Found {len(self.aweme_detail.images)} images).")

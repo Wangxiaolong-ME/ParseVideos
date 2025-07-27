@@ -27,7 +27,11 @@ class XiaohongshuParser(BaseParser):
         self.post = XiaohongshuPost()
         self.data = self.post.get_xhs(self.url, cookies=XIAOHONGSHU_COOKIE)
         vid = self.data['id']
-        title = self.data['title']
+        title = f"<b>{self.data['title']}</b>"
+        if self.data['description']:
+            desc = self.data['description']
+            desc = desc.replace('\t', '\n\n')
+            title += f"\n\n{desc}"
         self.result.vid = vid
         self.result.title = title
         return vid, title

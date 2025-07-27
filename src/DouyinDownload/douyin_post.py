@@ -14,7 +14,7 @@ import requests
 from DouyinDownload.config import DEFAULT_SAVE_DIR, DOWNLOAD_HEADERS
 from PublicMethods.m_download import Downloader
 from DouyinDownload.exceptions import ParseError
-from DouyinDownload.models import VideoOption
+from DouyinDownload.models import VideoOption,AudioOptions
 from DouyinDownload.parser import DouyinParser
 from TelegramBot.config import DOUYIN_DOWNLOAD_THREADS, DOUYIN_SESSION_COUNTS
 import logging
@@ -60,6 +60,7 @@ class DouyinPost:
         :param trust_env: 是否信任系统代理设置 (Whether to trust system proxy settings).
         :param threads: 下载时使用的线程数 (Number of threads for downloading).
         """
+        self.audio = AudioOptions
         self.parser = DouyinParser()
         self.short_url = self.parser.extract_short_url(short_url_text)
         self.save_dir = save_dir
@@ -97,6 +98,8 @@ class DouyinPost:
             log.info(f"标题:{self.video_title}")
             log.info(f"vid:{self.video_id}")
 
+            self.audio = self.parser.audio  # 音频
+
             # 默认按分辨率降序排序
             self.sort_options(by='resolution', descending=True)
         return self
@@ -133,13 +136,14 @@ class DouyinPost:
 
     # --- 链接处理方法 (Link Processing Methods) ---
 
-    def sort_options(self, by: str = 'resolution', descending: bool = True) -> 'DouyinPost':
+    def sort_options(self, by: str = 'resolution', descending: bool = True,  exclude_resolution=None) -> 'DouyinPost':
         """
         对 'processed_video_options' 列表进行排序。
         Sorts the 'processed_video_options' list.
 
         :param by: 排序依据，可选 'resolution' 或 'size'.
         :param descending: 是否降序排列.
+        :param exclude_resolution: 排除的分辨率
         :return: self, 以支持链式调用 (self, for chainable calls).
         """
         if by not in ['resolution', 'size']:
@@ -150,6 +154,15 @@ class DouyinPost:
         self.processed_video_options.sort(key=key_func, reverse=descending)
         log.debug(
             f"已按 '{by}' {'降序' if descending else '升序'} 重新排序视频选项 (Video options have been re-sorted by '{by}' in {'descending' if descending else 'ascending'} order).")
+        if exclude_resolution:
+            excluded_videos = []
+            for video in self.processed_video_options:
+                if video.resolution in exclude_resolution:
+                    log.debug(f"已过滤 {video.resolution} 分辨率视频")
+                    continue
+                excluded_videos.append(video)
+            self.processed_video_options = excluded_videos
+
         return self
 
     def filter_by_size(self, min_mb: Optional[float] = None, max_mb: Optional[float] = None) -> 'DouyinPost':

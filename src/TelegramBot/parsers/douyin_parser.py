@@ -7,8 +7,8 @@ from telegram.helpers import escape_markdown
 
 from DouyinDownload.douyin_post import DouyinPost
 from DouyinDownload.douyin_image_post import DouyinImagePost
-from TelegramBot.config import DOWNLOAD_TIMEOUT, DOUYIN_FETCH_IMAGE_TIMEOUT, DOUYIN_FETCH_VIDEO_TIMEOUT
-from .base import BaseParser, ParseResult
+from TelegramBot.config import DOWNLOAD_TIMEOUT, PREVIEW_SIZE, DOUYIN_FETCH_IMAGE_TIMEOUT, DOUYIN_FETCH_VIDEO_TIMEOUT
+from .base import BaseParser, ParseResult, VideoQualityOption
 from PublicMethods.functool_timeout import retry_on_timeout_async
 
 logger = logging.getLogger(__name__)
@@ -31,10 +31,12 @@ class DouyinParser(BaseParser):
             await self.image_post.fetch_details()
             vid = self.image_post.aweme_id
             title = self.image_post.title
+            await self._parse_audio(self.image_post)
         else:
             await self.post.fetch_details()  # 只拿 video_id / title
             vid = self.post.video_id
             title = self.post.video_title or self.post.video_id
+            await self._parse_audio(self.post)
         return vid, title
 
     @retry_on_timeout_async(60, 2)
@@ -44,7 +46,6 @@ class DouyinParser(BaseParser):
         """
         try:
             content_type_str = self.content_type
-
             if content_type_str == 'video':
                 return await self._parse_video(self.post)
             elif content_type_str == 'image':
@@ -60,48 +61,89 @@ class DouyinParser(BaseParser):
             self.result.success = False
             return self.result
 
-    async def _parse_video(self, post: DouyinPost) -> ParseResult:
-        # post.fetch_details()
-        post.filter_by_size(max_mb=50)
-        post.deduplicate_by_resolution()
-        option = post.get_option(720)
+    async def _parse_audio(self, post):
+        if post.audio:
+            self.result.audio_uri = post.audio.uri
 
-        # 填充基本信息到标准结果中
+    async def _parse_video(self, post: DouyinPost) -> ParseResult:
+        """解析视频并提供多分辨率选项"""
+        # 获取所有可用的视频选项
+        post.sort_options(by='resolution', descending=True, exclude_resolution=[1440, 2160])  # 按分辨率降序排列
+        post.deduplicate_by_resolution(keep='highest_bitrate')  # 每个分辨率保留最高码率
+
+        # 填充基本信息
         self.result.vid = post.video_id
         self.result.title = post.video_title
-        self.result.download_url = option.url
-        self.result.size_mb = option.size_mb
         self.result.content_type = 'video'
+        self.result.original_url = self.url
 
-        # 文件过大处理逻辑
-        smallest = min(post.processed_video_options, key=lambda o: o.size_mb)
-        if smallest.size_mb > 50:
-            md_link = f"[{escape_markdown(self.result.title, version=2)}]({escape_markdown(smallest.url, version=2)})"
-            self.result.text_message = f"视频超过 50 MB，点击下方链接下载：\n{md_link}"
-            self.result.content_type = 'link'
-            self.result.success = True
-            return self.result
+        # 3. 构建 quality_options 列表
+        quality_options = []
+        for opt in post.processed_video_options:
+            name = f"{opt.resolution}p"
+            if opt.size_mb:
+                name += f" ({opt.size_mb:.1f}MB)"
+            # 1. 拷贝所有属性
+            params = opt.__dict__.copy()
 
-        # 本地路径
-        local_path = self.save_dir / f"{post.video_id}_{option.gear_name}.mp4"
+            # 2. 覆盖/新增关键字段
+            params.update({
+                'resolution': opt.resolution,
+                'quality_name': name,
+                'download_url': opt.url,
+                'size_mb': opt.size_mb or 0,
+                'is_default': False,
+            })
 
-        # 命中磁盘缓存（注意：file_id 缓存逻辑移到通用处理器中）
-        if local_path.exists():
-            logger.debug("命中磁盘缓存 -> %s", local_path.name)
+            # 3. 一次性传参
+            quality_options.append(VideoQualityOption(**params))
+
+        self.result.quality_options = quality_options
+        self.result.needs_quality_selection = len(quality_options) > 0
+
+        # 4. 选出预览用的 option
+        # 4.1 筛出所有 ≤ PREVIEW_SIZE 的
+        small_opts = [qo for qo in quality_options if qo.size_mb <= PREVIEW_SIZE]
+        if small_opts:
+            # 有多条，取分辨率最高的
+            preview_option = max(small_opts, key=lambda qo: qo.resolution)      # type:VideoQualityOption
         else:
-            logger.info("开始下载抖音视频 -> %s", self.url)
-            v_path = post.download_option(option, timeout=DOWNLOAD_TIMEOUT)
-            Path(v_path).rename(local_path)
-            logger.info("下载完成 -> %s", local_path.name)
+            # 无 ≤ PREVIEW_SIZE 的，则取所有选项中 size 最小的
+            preview_option = min(quality_options, key=lambda qo: qo.size_mb or float('inf'))    # type:VideoQualityOption
 
-        # 将媒体文件添加到结果
+        # 标记默认预览按钮
+        preview_option.is_default = True
+
+        # 5. 下载并缓存这条预览视频
+        gear = f"{preview_option.resolution}p"
+        local_path = self.save_dir / f"{post.video_id}_{gear}.mp4"
+        if not local_path.exists():
+            logger.info(f"下载预览视频 -> {preview_option.quality_name}")
+            download_path = post.download_option(preview_option, timeout=DOWNLOAD_TIMEOUT)
+            Path(download_path).rename(local_path)
+            logger.info(f"下载完成 -> {local_path.name}")
+        else:
+            logger.debug("预览视频已缓存 -> %s", local_path.name)
+
+        self.result.size_mb = preview_option.size_mb
+        self.result.download_url = preview_option.download_url
+        # 添加媒体文件到结果，以便发送时使用 local_path
         self.result.add_media(
             local_path=local_path,
             file_type='video',
-            width=option.width,
-            height=option.height,
-            duration=int(option.duration / 1000)
+            width=preview_option.resolution,
+            height=0,
+            duration=int(getattr(preview_option, 'duration', 0))
         )
+
+        # 6. 设置 preview_url（兼容不下载时的在线预览）
+        self.result.preview_url = preview_option.download_url
+
+        # 强制调试：打印所有选项
+        for i, opt in enumerate(self.result.quality_options):
+            logger.info(
+                f"选项{i}: {opt.resolution}p ({opt.size_mb}MB) default={opt.is_default} url={opt.download_url[:50]}...")
+
         self.result.success = True
         return self.result
 

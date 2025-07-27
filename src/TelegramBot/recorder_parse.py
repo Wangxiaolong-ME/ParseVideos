@@ -151,16 +151,14 @@ def _record_user_parse(info: UserParseResult):
 
     record_entry = UserRecordEntry(**record_data)
 
-    # 对于新视频（非缓存命中），可以考虑去重逻辑
-    # 对于缓存命中，即使 vid 相同也应该记录，因为每次命中都是一次新的统计事件
-    if not is_cached_hit:  # 如果是新视频解析 (即 info.fid 为空)
-        # 假设我们不希望重复记录同一个 vid 的新解析成功事件
-        # 您可以根据实际需求调整这里的去重策略
-        # 只有当 info.vid 不为 None 且存在重复时才跳过
-        if info.vid is not None and any(rec.get("vid") == info.vid and not rec.get("is_cached_hit") for rec in
-                                        current_data[user_key]["records"]):
-            log.warning(f"检测到重复的新视频记录 (VID: {info.vid})，跳过追加。")
-            return  # 避免重复记录新视频
+    """ 管他命不命中的, 只要发起解析了就记录 """
+    # # 对于缓存命中，即使 vid 相同也应该记录，因为每次命中都是一次新的统计事件
+    # if not is_cached_hit:  # 如果是新视频解析 (即 info.fid 为空)
+    #     # 只有当 info.vid 不为 None 且存在重复时才跳过
+    #     if info.vid is not None and any(rec.get("vid") == info.vid and not rec.get("is_cached_hit") for rec in
+    #                                     current_data[user_key]["records"]):
+    #         log.warning(f"检测到重复的新视频记录 (VID: {info.vid})，跳过追加。")
+    #         return  # 避免重复记录新视频
 
     # 追加记录
     current_data[user_key]["records"].append(asdict(record_entry))
