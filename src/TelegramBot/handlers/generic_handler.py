@@ -19,7 +19,7 @@ from TelegramBot.config import EXCEPTION_MSG, MAX_THREAD_WORKERS, BILI_PREVIEW_V
 from TelegramBot.task_manager import TaskManager
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.utils import MsgSender
-from TelegramBot.file_cache import get as cache_get, put as cache_put
+from TelegramBot.file_cache import get as cache_get, put as cache_put, delete as cache_del
 from TelegramBot.recorder_parse import UserParseResult, _record_user_parse
 from TelegramBot.parsers.base import BaseParser, ParseResult
 
@@ -125,7 +125,7 @@ async def generic_command_handler(
                     return True
                 except BadRequest as e:
                     logger.warning(f"file_id失效，清理并回退到上传: {e}")
-                    cache_put(vid, None)
+                    cache_del(vid)
                     # 重新显示占位消息
                     progress_msg = await sender.send("缓存已失效，正在重新上传...")
 
@@ -151,7 +151,6 @@ async def generic_command_handler(
             logger.info(f"解析失败，发送异常消息, 异常详情:{parse_result.error_message}")
             error_msg = parse_result.error_message or EXCEPTION_MSG
             await progress_msg.edit_text(EXCEPTION_MSG)
-            # await sender.send(EXCEPTION_MSG)
             record.exception = error_msg
             return
 
@@ -209,7 +208,7 @@ async def _save_cache_fid(msg: Message, parse_result: ParseResult):
     # 目前只缓存单视频/音频的file_id
     if parse_result.content_type in ['video', 'audio']:
         if file_id := _extract_file_id(msg):
-            cache_put(parse_result.vid, file_id)
+            cache_put(parse_result.vid, file_id, title=parse_result.title)
             logger.debug(f"记录新的 file_id 缓存 -> {parse_result.vid}")
     # 图集消息：Telegram 返回的是消息列表
     elif parse_result.content_type == 'image_gallery':
@@ -218,7 +217,7 @@ async def _save_cache_fid(msg: Message, parse_result: ParseResult):
             album_file_ids = _build_image_gallery_cache_fid(msg)
             # 使用图集的唯一 ID 缓存整个 file_id 列表，方便后续取用
             if album_file_ids:
-                cache_put(parse_result.vid, album_file_ids)
+                cache_put(parse_result.vid, album_file_ids, title=parse_result.title)
                 logger.debug(f"记录新的图集 file_id 列表 -> {parse_result.vid}: {album_file_ids}")
 
 

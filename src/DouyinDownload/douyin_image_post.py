@@ -137,25 +137,28 @@ class DouyinImagePost:
             log.debug(f"开始下载 {file_type} (Starting {file_type} download): {filename}")
             log.debug(f"URL: {download_url}")
 
-            try:
-                # 图集单个都不大，不需要多session
-                self.downloader.download(download_url, headers=DOWNLOAD_HEADERS, path=output_path, timeout=timeout)
+            for i in range(0, 3):
+                try:
+                    # 图集单个都不大，不需要多session
+                    self.downloader.download(download_url, headers=DOWNLOAD_HEADERS, path=output_path, timeout=timeout)
 
-                size_merge += os.path.getsize(output_path) / (1024 * 1024) if os.path.exists(
-                    output_path) and os.path.getsize(output_path) > 0 else 0
+                    size_merge += os.path.getsize(output_path) / (1024 * 1024) if os.path.exists(
+                        output_path) and os.path.getsize(output_path) > 0 else 0
 
-                # 创建 Image 对象（现在可代表视频）并添加到列表中
-                downloaded_media = Image(
-                    width=media_width,
-                    height=media_height,
-                    url=download_url,  # 使用实际下载的URL
-                    local_path=output_path,
-                    duration=media_duration,
-                    file_type=file_type
-                )
-                saved_media_info.append(downloaded_media)
-            except Exception as e:
-                log.error(f"下载 {file_type} {filename} 失败: {e}")
+                    # 创建 Image 对象（现在可代表视频）并添加到列表中
+                    downloaded_media = Image(
+                        width=media_width,
+                        height=media_height,
+                        url=download_url,  # 使用实际下载的URL
+                        local_path=output_path,
+                        duration=media_duration,
+                        file_type=file_type
+                    )
+                    saved_media_info.append(downloaded_media)
+                    break
+                except Exception as e:
+                    log.error(f"下载 {file_type} {filename} 失败: {e}")
+                    continue
 
         end_time = datetime.now()
         elapsed_seconds = (end_time - start_time).total_seconds()

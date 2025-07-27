@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from TelegramBot.config import ADMIN_ID
-from TelegramBot.file_cache import delete, keys
+from TelegramBot.file_cache import delete, key_title_pairs
 
 async def delcache_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -33,11 +33,11 @@ async def showcache_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     if update.effective_user.id != ADMIN_ID:
         return
 
-    # 取得全部 key，按插入顺序（dict 在 3.7+ 保序）展示
-    all_keys = keys()
+    # 取得全部 (key, title)，字典在 3.7+ 默认保序
+    all_pairs = key_title_pairs()
 
-    # —— 处理可选参数 ——
-    n = None
+    # —— 解析可选参数 ——
+    n: int | None = None
     if context.args:
         try:
             n = int(context.args[0])
@@ -45,17 +45,19 @@ async def showcache_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             await update.message.reply_text("参数必须是整数，例如：/showcache 10 或 /showcache -10")
             return
 
-    # 根据 n 取子集
-    if n is None or n == 0 or abs(n) >= len(all_keys):
-        subset = all_keys
+    # —— 截取子集 ——
+    if n is None or n == 0 or abs(n) >= len(all_pairs):
+        subset = all_pairs
     elif n > 0:
-        subset = all_keys[:n]
+        subset = all_pairs[:n]
     else:
-        subset = all_keys[n:]   # n 为负数，取最后 |n| 条
+        subset = all_pairs[n:]  # n 为负数 → 取最后 |n| 条
 
     if not subset:
         await update.message.reply_text("当前缓存为空。")
         return
 
-    text = "📄 缓存键列表：\n" + "\n".join(subset)
+    # —— 构造输出文本 ——
+    lines = [f"{k}  {t}" if t else k for k, t in subset]
+    text = "📄 缓存条目：\n" + "\n".join(lines)
     await update.message.reply_text(text)
