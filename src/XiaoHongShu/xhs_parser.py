@@ -222,7 +222,7 @@ class XiaohongshuPost:
         # 处理换行,空格就属于换行,但是data当中不体现
         description = re.sub(r"\s{2,}", '\\n', description, re.DOTALL)
         # 拼接标签
-        tags = "#" + ', #'.join(tags)
+        tags = "#" + ' #'.join(tags)
         description += f"\n{tags}"
 
         # 将提取的数据存入字典
