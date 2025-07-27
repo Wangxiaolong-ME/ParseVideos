@@ -438,7 +438,7 @@ async def _send_quality_selection(sender: MsgSender, result: ParseResult, progre
                 if option.size_mb:
                     button_text += f" ({option.size_mb:.1f}MB)"
                 if option.is_default:
-                    button_text = f"⭐ {button_text}"  # 默认选项加星标
+                    button_text = f"⭐当前视频 {button_text}"  # 默认选项加星标
 
                 # 使用URL按钮直接跳转到下载链接
                 logger.debug(f"创建URL按钮: {button_text} -> {option.download_url}")

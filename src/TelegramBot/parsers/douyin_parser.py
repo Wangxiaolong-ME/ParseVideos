@@ -70,7 +70,7 @@ class DouyinParser(BaseParser):
         """解析视频并提供多分辨率选项"""
         # 获取所有可用的视频选项
         post.sort_options(by='resolution', descending=True, exclude_resolution=[1440, 2160])  # 按分辨率降序排列
-        post.deduplicate_by_resolution(keep='highest_bitrate')  # 每个分辨率保留最高码率
+        # post.deduplicate_by_resolution(keep='highest_bitrate')  # 每个分辨率保留最高码率
 
         # 填充基本信息
         self.result.vid = post.video_id
@@ -99,20 +99,22 @@ class DouyinParser(BaseParser):
             # 3. 一次性传参
             quality_options.append(VideoQualityOption(**params))
 
+        preview_option = (
+                post.pick_option_under_size(quality_options, max_mb=PREVIEW_SIZE)  # ≤ PREVIEW_SIZE
+                or post.pick_option_under_size(quality_options, max_mb=50)  # ≤ 50MB
+        )
+        # 兜底：选取整个列表里码率最高
+        if not preview_option:
+            quality_options = post.deduplicate_with_limit(quality_options)
+            preview_option = quality_options[0]
+        else:
+            quality_options = post.deduplicate_with_limit(quality_options)
+            quality_options.insert(0, preview_option)   # 作为首个展示用
+
         self.result.quality_options = quality_options
         self.result.needs_quality_selection = len(quality_options) > 0
 
-        # 4. 选出预览用的 option
-        # 4.1 筛出所有 ≤ PREVIEW_SIZE 的
-        small_opts = [qo for qo in quality_options if qo.size_mb <= PREVIEW_SIZE]
-        if small_opts:
-            # 有多条，取分辨率最高的
-            preview_option = max(small_opts, key=lambda qo: qo.resolution)      # type:VideoQualityOption
-        else:
-            # 无 ≤ PREVIEW_SIZE 的，则取所有选项中 size 最小的
-            preview_option = min(quality_options, key=lambda qo: qo.size_mb or float('inf'))    # type:VideoQualityOption
-
-        # 标记默认预览按钮
+        # 默认预览按钮
         preview_option.is_default = True
 
         # 5. 下载并缓存这条预览视频
@@ -131,8 +133,8 @@ class DouyinParser(BaseParser):
             self.result.add_media(
                 local_path=local_path,
                 file_type='video',
-                width=preview_option.resolution,
-                height=0,
+                width=preview_option.width,
+                height=preview_option.height,
                 duration=int(getattr(preview_option, 'duration', 0))
             )
 

@@ -14,7 +14,7 @@ import requests
 from DouyinDownload.config import DEFAULT_SAVE_DIR, DOWNLOAD_HEADERS
 from PublicMethods.m_download import Downloader
 from DouyinDownload.exceptions import ParseError
-from DouyinDownload.models import VideoOption,AudioOptions
+from DouyinDownload.models import VideoOption, AudioOptions
 from DouyinDownload.parser import DouyinParser
 from TelegramBot.config import DOUYIN_DOWNLOAD_THREADS, DOUYIN_SESSION_COUNTS
 import logging
@@ -99,6 +99,7 @@ class DouyinPost:
             self.processed_video_options = self.raw_video_options.copy()
             log.info(f"标题:{self.video_title}")
             log.info(f"vid:{self.video_id}")
+            log.info(f"解析到 {len(self.raw_video_options)} 条视频流")
 
             self.audio = self.parser.audio  # 音频
 
@@ -138,7 +139,7 @@ class DouyinPost:
 
     # --- 链接处理方法 (Link Processing Methods) ---
 
-    def sort_options(self, by: str = 'resolution', descending: bool = True,  exclude_resolution=None) -> 'DouyinPost':
+    def sort_options(self, by: str = 'resolution', descending: bool = True, exclude_resolution=None) -> 'DouyinPost':
         """
         对 'processed_video_options' 列表进行排序。
         Sorts the 'processed_video_options' list.
@@ -257,6 +258,97 @@ class DouyinPost:
         option = self.processed_video_options[0]
         log.debug(f"去重后第一个视频参数:{option.resolution}>>{option.gear_name}>>{option.size_mb}")
         return self
+
+    @staticmethod
+    def deduplicate_with_limit(video_options: list,  # 传入的 VideoOption 列表
+                               max_mb: float | None = None,  # 若给定，必须保留 ≤ max_mb 的一个选项
+                               keep: str = 'highest_bitrate'  # 其他分辨率的保留策略
+                               ) -> list:
+        """
+        对传入的视频选项去重，并在指定时强制保留一个小文件。
+        - 若 `max_mb` 提供：优先在所有分辨率里挑出 **size_mb ≤ max_mb** 的最佳选项，
+          选中后同分辨率的其它选项全部丢弃；
+          其他分辨率再按 `keep` 策略各保留 1 个。
+        - 若 `max_mb` 为 None，则等同普通去重（每分辨率 1 个），策略由 `keep` 决定。
+
+        返回：去重后的列表，已按 resolution 从高到低排序。
+        """
+        if not video_options:
+            return []
+
+        valid_keeps = ['highest_bitrate', 'lowest_bitrate',
+                       'largest_size', 'smallest_size']
+        if keep not in valid_keeps:
+            raise ValueError(f"keep 必须是 {valid_keeps} 之一")
+
+        key_map = {
+            'highest_bitrate': ('bit_rate', True),
+            'lowest_bitrate': ('bit_rate', False),
+            'largest_size': ('size_mb', True),
+            'smallest_size': ('size_mb', False)
+        }
+        sort_key, is_max_preferred = key_map[keep]
+
+        # ---------- 若需保留小文件 ----------
+        reserved_opt = None
+        if max_mb is not None:
+            candidates = [o for o in video_options
+                          if o.size_mb is not None and o.size_mb <= max_mb]
+            if candidates:  # 从符合大小的里挑一个“最佳”
+                reserved_opt = max(candidates, key=lambda x: getattr(x, sort_key)) \
+                    if is_max_preferred else \
+                    min(candidates, key=lambda x: getattr(x, sort_key))
+
+        # ---------- 按分辨率分组 ----------
+        grouped: dict[str, list] = {}
+        for opt in video_options:
+            if reserved_opt and opt is reserved_opt:
+                continue  # 已经选中，后面不再参与分组
+            if reserved_opt and opt.resolution == reserved_opt.resolution:
+                continue  # 同分辨率被淘汰
+            grouped.setdefault(opt.resolution, []).append(opt)
+
+        # ---------- 每分辨率保留 1 ----------
+        deduped: list = [reserved_opt] if reserved_opt else []
+        for options in grouped.values():
+            valid_opts = [o for o in options if getattr(o, sort_key) is not None]
+            if not valid_opts:
+                continue
+            chosen = max(valid_opts, key=lambda x: getattr(x, sort_key)) \
+                if is_max_preferred else \
+                min(valid_opts, key=lambda x: getattr(x, sort_key))
+            deduped.append(chosen)
+
+        # 按分辨率从高到低或自行排序
+        deduped.sort(key=lambda x: x.resolution, reverse=True)
+        return deduped
+
+    @staticmethod
+    def pick_option_under_size(
+            options: list,
+            max_mb: float,
+            bitrate_pref: str = 'highest'  # 'highest' 或 'lowest'
+    ):
+        """
+        从 options 中选出 size_mb ≤ max_mb 的一个对象。
+        - bitrate_pref='highest'  →  在候选里选码率最高的
+        - bitrate_pref='lowest'   →  在候选里选码率最低的
+        若无符合大小的对象，返回 None。
+        """
+        if bitrate_pref not in ('highest', 'lowest'):
+            raise ValueError("bitrate_pref 必须是 'highest' 或 'lowest'")
+
+        # 过滤：先保证大小符合
+        candidates = [o for o in options
+                      if o.size_mb is not None and o.size_mb <= max_mb]
+
+        if not candidates:
+            return None
+
+        # 选择函数
+        chooser = max if bitrate_pref == 'highest' else min
+        # 同码率时，默认再比分辨率高低
+        return chooser(candidates, key=lambda o: (o.bit_rate or 0, o.resolution))
 
     def get_option(self, resolution: Optional[int] = None, strategy: str = "highest_resolution") -> Optional[
         VideoOption]:

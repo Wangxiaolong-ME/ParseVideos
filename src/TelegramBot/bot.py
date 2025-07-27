@@ -7,7 +7,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 from TelegramBot.config import TELEGRAM_TOKEN_ENV, ADMIN_ID, MIN_MSG_INTERVAL
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.task_manager import TaskManager
-from TelegramBot.handlers import bilibili, douyin, music, general, status, notify, xiaohongshu, blacklist
+from TelegramBot.handlers import bilibili, douyin, music, general, status, notify, xiaohongshu, blacklist, cache
 
 
 def _inject_singletons(app):
@@ -42,7 +42,8 @@ def main() -> None:
 
     # 注册命令
     application.add_handler(CommandHandler("start", _start))
-
+    application.add_handler(CommandHandler("delcache", cache.delcache_cmd))
+    application.add_handler(CommandHandler("showcache", cache.showcache_cmd))
     application.add_handler(CommandHandler("blacklist_add", blacklist.handle_blacklist_add_command))
     application.add_handler(CommandHandler("blacklist_remove", blacklist.handle_blacklist_remove_command))
     application.add_handler(CommandHandler("blacklist_show", blacklist.handle_blacklist_show_command))
