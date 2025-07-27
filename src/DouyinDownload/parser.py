@@ -16,7 +16,7 @@ from DouyinDownload.config import AWEME_DETAIL_API_URL, PLAYWRIGHT_TIMEOUT, IMAG
 from DouyinDownload.exceptions import URLExtractionError, ParseError
 from DouyinDownload.models import VideoOption, ImageOptions, AudioOptions
 import logging
-
+from TelegramBot.config import DOUYIN_PARSE_IMAGE_TIMEOUT, DOUYIN_PARSE_VIDEO_TIMEOUT
 from PublicMethods.tools import prepared_to_curl
 from PublicMethods.playwrigth_manager import PlaywrightManager
 from PublicMethods.functool_timeout import retry_on_timeout_async
@@ -333,7 +333,7 @@ class DouyinParser:
             images=images
         )
 
-    @retry_on_timeout_async(10, 3)
+    @retry_on_timeout_async(*DOUYIN_PARSE_IMAGE_TIMEOUT)
     async def fetch_images(self, short_url):
         context = await PlaywrightManager.new_context()
         page = await context.new_page()
@@ -359,7 +359,7 @@ class DouyinParser:
         finally:
             await context.close()
 
-    @retry_on_timeout_async(10, 3)
+    @retry_on_timeout_async(*DOUYIN_PARSE_VIDEO_TIMEOUT)
     async def fetch(self, short_url: str, target_api=AWEME_DETAIL_API_URL) -> tuple[str, list[VideoOption]] | None:
         """
         执行解析的主流程。

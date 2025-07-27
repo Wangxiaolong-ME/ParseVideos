@@ -42,8 +42,8 @@ DOUYIN_SAVE_DIR = BASE_DIR / "dy_downloads"
 # 超时 设置
 DOUYIN_FETCH_IMAGE_TIMEOUT = 40  # 下载图集
 DOUYIN_FETCH_VIDEO_TIMEOUT = 60  # 下载视频
-DOUYIN_PARSE_IMAGE_TIMEOUT = [10, 3]  # 解析图集信息 [超时时间，重试次数]
-DOUYIN_PARSE_VIDEO_TIMEOUT = [10, 3]  # 解析视频信息 [超时时间，重试次数]
+DOUYIN_PARSE_IMAGE_TIMEOUT = [20, 3]  # 解析图集信息 [超时时间，重试次数]
+DOUYIN_PARSE_VIDEO_TIMEOUT = [20, 3]  # 解析视频信息 [超时时间，重试次数]
 
 # —————————— 抖音配置 ——————————
 
