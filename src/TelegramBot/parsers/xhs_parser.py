@@ -25,6 +25,7 @@ class XiaohongshuParser(BaseParser):
 
     async def peek(self) -> tuple[str, str]:
         self.post = XiaohongshuPost()
+        self.url = self.post.extract_final_url(self.url)
         self.data = self.post.get_xhs(self.url, cookies=XIAOHONGSHU_COOKIE)
         vid = self.data['id']
         title = f"<b>{self.data['title']}</b>"

@@ -38,7 +38,7 @@ async def handle_general_url(update: Update, context: ContextTypes.DEFAULT_TYPE)
             logger.error(f"music_command 失败: {e}")
             await update.effective_message.reply_text(EXCEPTION_MSG, quote=True)
 
-    elif re.search(r'xiaohongshu\.com/[\w\S]+', text):
+    elif re.search(r'(xiaohongshu\.com/[\w\S]+)|(xhslink\.com/)', text):
         try:
             platform = "xhs"
             r = await xiaohongshu.xhs_command(update, context, is_command=False)

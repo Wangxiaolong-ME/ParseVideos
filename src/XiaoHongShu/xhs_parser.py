@@ -23,6 +23,12 @@ class XiaohongshuPost:
         self.download = Downloader()
         self.save_dir = XIAOHONGSHU_SAVE_DIR
 
+    def extract_final_url(self, url_string):
+        url = self.extract_short_url(url_string) or self.extract_base_url(url_string)
+        if not url:
+            raise ValueError("该URL不是有效的小红书URL (This is not a valid Xiaohongshu URL).")
+        return url
+
     @staticmethod
     def is_xhs_url(url: str) -> bool:
         """
@@ -36,6 +42,16 @@ class XiaohongshuPost:
         bool: 如果是小红书URL返回True，否则返回False。
         """
         return bool(re.search(r'https://www\.xiaohongshu\.com/[\w\S]+', url))
+
+    def extract_short_url(self, url: str) -> str:
+        """ 提取短链接 """
+        # 使用正则表达式去掉分享时可能附加的中文部分或其他参数
+        match = re.search(r'https?://xhslink\.com/[\w\S]+', url)
+        if u := match:
+            base_url = self.download._get_final_url(u.group(), headers=XHS_DOWNLOAD_HEADERS, use_get=True)
+            if base_url:
+                return base_url
+        return url
 
     @staticmethod
     def extract_base_url(url: str) -> str:
@@ -198,6 +214,16 @@ class XiaohongshuPost:
         # 提取视频时长
         videotime = soup.find('meta', attrs={'name': 'og:videotime'})['content'] if soup.find('meta', attrs={
             'name': 'og:videotime'}) else None
+
+        # 处理description 后的#标签
+        tags = [tag.strip(' ') for tag in keywords.split(',')]
+        description = re.sub(fr"#{tags[0]}.*{tags[-1]}", '', description, re.DOTALL)
+
+        # 处理换行,空格就属于换行,但是data当中不体现
+        description = re.sub(r"\s{2,}", '\\n', description, re.DOTALL)
+        # 拼接标签
+        tags = "#" + ', #'.join(tags)
+        description += f"\n{tags}"
 
         # 将提取的数据存入字典
         data['id'] = explore_id
