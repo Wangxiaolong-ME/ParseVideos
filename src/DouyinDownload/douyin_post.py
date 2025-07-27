@@ -89,6 +89,8 @@ class DouyinPost:
         log.debug("正在获取作品详情 (Fetching post details)...")
         if not self.video_title:  # 避免重复获取
             self.video_title, self.raw_video_options = await self.parser.fetch(self.short_url)
+            if not self.raw_video_options:
+                raise ParseError("未能获取到作品详情 (Failed to get valid video details).")
             # 保留原始标题，并创建一个处理后的标题用于文件命名
             self.processed_video_title = re.sub(r'[#].*?(\s|$)', '', self.video_title.replace('\n', ' ')).strip()
             self.video_id = self.raw_video_options[0].aweme_id
