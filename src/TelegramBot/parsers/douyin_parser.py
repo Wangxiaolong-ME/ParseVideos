@@ -108,8 +108,8 @@ class DouyinParser(BaseParser):
             quality_options = post.deduplicate_with_limit(quality_options)
             preview_option = quality_options[0]
         else:
-            quality_options = post.deduplicate_with_limit(quality_options)
             quality_options.insert(0, preview_option)   # 作为首个展示用
+            quality_options = post.deduplicate_with_limit(quality_options)
 
         self.result.quality_options = quality_options
         self.result.needs_quality_selection = len(quality_options) > 0

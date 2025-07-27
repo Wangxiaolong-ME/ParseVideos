@@ -321,6 +321,7 @@ class DouyinPost:
 
         # 按分辨率从高到低或自行排序
         deduped.sort(key=lambda x: x.resolution, reverse=True)
+        log.debug(f"已对视频选项进行去重")
         return deduped
 
     @staticmethod
