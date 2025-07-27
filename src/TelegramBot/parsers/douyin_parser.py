@@ -118,24 +118,26 @@ class DouyinParser(BaseParser):
         # 5. 下载并缓存这条预览视频
         gear = f"{preview_option.resolution}p"
         local_path = self.save_dir / f"{post.video_id}_{gear}.mp4"
-        if not local_path.exists():
-            logger.info(f"下载预览视频 -> {preview_option.quality_name}")
-            download_path = post.download_option(preview_option, timeout=DOWNLOAD_TIMEOUT)
-            Path(download_path).rename(local_path)
-            logger.info(f"下载完成 -> {local_path.name}")
-        else:
-            logger.debug("预览视频已缓存 -> %s", local_path.name)
+        if preview_option.size_mb < 50:
+            if not local_path.exists():
+                logger.info(f"下载预览视频 -> {preview_option.quality_name}")
+                download_path = post.download_option(preview_option, timeout=DOWNLOAD_TIMEOUT)
+                Path(download_path).rename(local_path)
+                logger.info(f"下载完成 -> {local_path.name}")
+            else:
+                logger.debug("预览视频已缓存 -> %s", local_path.name)
+
+            # 添加媒体文件到结果，以便发送时使用 local_path
+            self.result.add_media(
+                local_path=local_path,
+                file_type='video',
+                width=preview_option.resolution,
+                height=0,
+                duration=int(getattr(preview_option, 'duration', 0))
+            )
 
         self.result.size_mb = preview_option.size_mb
         self.result.download_url = preview_option.download_url
-        # 添加媒体文件到结果，以便发送时使用 local_path
-        self.result.add_media(
-            local_path=local_path,
-            file_type='video',
-            width=preview_option.resolution,
-            height=0,
-            duration=int(getattr(preview_option, 'duration', 0))
-        )
 
         # 6. 设置 preview_url（兼容不下载时的在线预览）
         self.result.preview_url = preview_option.download_url

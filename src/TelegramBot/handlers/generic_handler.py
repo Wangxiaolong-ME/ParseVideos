@@ -505,7 +505,7 @@ async def _send_quality_selection(sender: MsgSender, result: ParseResult, progre
 
     try:
         if result.size_mb > 50:
-            raise "视频体积超50M"
+            raise Exception("视频体积超50M")
         item = result.media_items[0] if result.media_items else None
         msg = await sender.send_video(
             video=item.local_path,
@@ -521,7 +521,7 @@ async def _send_quality_selection(sender: MsgSender, result: ParseResult, progre
         result.success = True
         return msg
     except Exception as e:
-        logger.error(f"Failed to send quality selection message with HTML: {e}")
+        logger.error(f"{e}")
         # Fallback: try without parse_mode
         try:
             text = "请选择分辨率下载"
