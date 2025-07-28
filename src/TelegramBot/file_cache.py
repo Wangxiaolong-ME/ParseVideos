@@ -143,7 +143,7 @@ def get_title(key: str) -> str | None:
     if entry is None:
         return None
     title = entry.get("title", "")
-    return title.replace("\n", "")[:20]
+    return title
 
 
 def key_title_pairs() -> list[tuple[str, str]]:

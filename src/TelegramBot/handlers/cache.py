@@ -1,8 +1,8 @@
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from TelegramBot.config import ADMIN_ID
-from TelegramBot.file_cache import delete, key_title_pairs, peek, get_title
+from TelegramBot.file_cache import delete, key_title_pairs, peek, get_title, get_full
 from TelegramBot.handlers.generic_handler import _send_by_file_id
 from TelegramBot.utils import MsgSender
 
@@ -84,21 +84,33 @@ async def getcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
 
     key = context.args[0]
-    file_id = peek(key)
-    if file_id is None:
+    entry = get_full(key)
+    title = ''
+    if not entry:  # 旧缓存是 str，新缓存是 dict
         await update.message.reply_text(f"⚠️ 未找到缓存：{key}")
         return
 
-    title = get_title(key) or ""  # 空标题则不加 caption
-
-    # —— 发文件：file_id 可能是 str 或 list[str] ——
-    # 如果是列表，只取第一项；如需全发可改成循环。
-    fid_to_send = file_id[0] if isinstance(file_id, list) else file_id
+    if isinstance(entry, dict):
+        title = entry["title"]
+        file_id = entry["value"]
+        rm_data = entry.get("reply")
+        parse_mode = entry.get("parse_mode") or 'HTML'
+    else:  # 兼容旧格式
+        file_id = entry
+        rm_data = None
+        parse_mode = 'HTML'
+    rm_obj = InlineKeyboardMarkup(rm_data) if rm_data else None
 
     try:
         # sender 对象需具备 .send_*(...)，你的 _send_by_file_id 已封装好
         sender = MsgSender(update)  # 大多数封装里 chat 本身即可
-        await _send_by_file_id(sender, fid_to_send, title)
+        await _send_by_file_id(
+            sender,
+            file_id,
+            title,  # caption
+            reply_markup=rm_obj,
+            parse_mode=parse_mode,
+        )
     except Exception as e:
         await update.message.reply_text(f"file_id 无效或已过期：{e}")
         # 如需清理缓存，可在此调用 delete(key)
