@@ -54,4 +54,4 @@ async def showlog_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # -------- 统计信息 --------
     lines.append(f"\n共展示 {min(count, len(records))} 条记录")
 
-    await update.message.reply_text("\n".join(lines))
+    await update.effective_message.reply_text("\n".join(lines))
