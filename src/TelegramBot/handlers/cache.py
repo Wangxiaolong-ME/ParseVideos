@@ -61,7 +61,7 @@ async def showcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
 
     # —— 构造输出文本 ——
-    lines = [f"{k}  {t}" if t else k for k, t in subset]
+    lines = [f"{k}  {t.replace('\n',' ')[:15]}" if t else k for k, t in subset]
     text = "📄 缓存条目：\n" + "\n".join(lines)
     await update.message.reply_text(text)
 
