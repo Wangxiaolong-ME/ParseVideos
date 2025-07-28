@@ -64,6 +64,7 @@ def _atomic_write(data: str) -> Path:
         os.fsync(tf.fileno())
         tmp_path = Path(tf.name)
     os.replace(str(tmp_path), str(CACHE_FILE))
+    logger.debug(f"cache wright success")
     return tmp_path
 
 
@@ -118,6 +119,7 @@ def put(key, file_id, *, title: str | None = None, reply: list | None = None, pa
         reply=reply if reply is not None else entry.get("reply"),
         parse_mode=parse_mode if parse_mode is not None else entry.get("parse_mode"),
     )
+    logger.debug(f"put cache, key:{key}")
     if title is not None:
         entry["title"] = title
     save()

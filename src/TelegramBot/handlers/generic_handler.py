@@ -225,8 +225,7 @@ async def _save_cache_fid(msg: Message, parse_result: ParseResult, *, reply_mark
         reply_data = rm_dict["inline_keyboard"]  # 纯列表，能 JSON 序列化
     else:
         reply_data = None
-    # 对于图集，Telegram返回一个消息列表
-    # 目前只缓存单视频/音频的file_id
+    # 单视频/音频的file_id
     if parse_result.content_type in ['video', 'audio']:
         if file_id := _extract_file_id(msg):
             cache_put(
@@ -287,6 +286,7 @@ def _extract_file_id(msg: Message) -> str | None:
     if msg.audio: return msg.audio.file_id
     if msg.document: return msg.document.file_id
     if msg.photo: return msg.photo[-1].file_id  # tuple中多张尺寸图片,依次由小到大升序,取最大的
+    logger.warning(f"未能从消息中提取 file_id")
     return None
 
 
