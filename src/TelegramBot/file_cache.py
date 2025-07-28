@@ -136,7 +136,9 @@ def delete(key: str) -> bool:
 def get_title(key: str) -> str | None:
     """返回指定 key 的 title，供日后需要时使用。"""
     entry = _cache.get(key)
-    return None if entry is None else entry["title"]
+    title = entry.get("title", "")
+    var = title.replace("\n", "")[:20]
+    return var
 
 
 def key_title_pairs() -> list[tuple[str, str]]:

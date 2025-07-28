@@ -42,6 +42,8 @@ def main() -> None:
 
     # 注册命令
     application.add_handler(CommandHandler("start", _start))
+
+    application.add_handler(CommandHandler("getcache", cache.getcache_cmd))
     application.add_handler(CommandHandler("delcache", cache.delcache_cmd))
     application.add_handler(CommandHandler("showcache", cache.showcache_cmd))
     application.add_handler(CommandHandler("blacklist_add", blacklist.handle_blacklist_add_command))
