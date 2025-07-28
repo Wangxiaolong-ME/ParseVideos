@@ -34,26 +34,23 @@ async def showlog_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ── 构造输出文本（最新 count 条） ──
     lines = []
     for rec in records[:count]:
-        # -------- 批量取值，避免多次 dict.get --------
-        ts_raw = rec.get("timestamp", "")
-        uid = rec.get("uid")
-        vid = rec.get("vid")
+        ts = rec.get("timestamp", "")[:19].replace("T", " ")
         hit = "缓存命中" if rec.get("is_cached_hit") else "新解析"
+        uid, vid = rec.get("uid"), rec.get("vid")
         title = (rec.get("title") or "").replace("\n", " ").strip()
 
-        # -------- 时间裁剪并格式化 --------
-        ts = ts_raw[:19].replace("T", " ")
+        # 主行 & UID/VID 行
+        lines.append(f"[{ts}] {hit}")
+        lines.append(f"UID: {uid} | VID: {vid}")
 
-        # -------- 主行（时间 / 命中状态 / UID / VID） --------
-        lines.append(f"[{ts}] {hit}\nUID: {uid} | VID: {vid}")
-
-        # -------- 副行：标题存在才输出 --------
+        # 副行：有标题则输出标题
         if title:
-            lines.append(f"标题: {title[:15]}\n")  # 15 字截断，可按需调整
-        else:
-            lines.append("\n")
+            lines.append(f"标题: {title[:15]}")
 
-    # -------- 统计信息 --------
-    lines.append(f"\n共展示 {min(count, len(records))} 条记录")
+        # 统一追加一个空行用于分隔（只会空一行）
+        lines.append("")
+
+    # ── 统计信息 ──
+    lines.append(f"共展示 {min(count, len(records))} 条记录")
 
     await update.effective_message.reply_text("\n".join(lines))
