@@ -157,7 +157,7 @@ class DouyinImagePost:
                     saved_media_info.append(downloaded_media)
                     break
                 except Exception as e:
-                    log.error(f"下载 {file_type} {filename} 失败: {e}")
+                    log.error(f"下载失败,重试 {i+1}, {file_type} {filename} 失败: {e}")
                     continue
 
         end_time = datetime.now()

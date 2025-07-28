@@ -7,7 +7,7 @@ from TelegramBot.handlers.generic_handler import _send_by_file_id
 from TelegramBot.utils import MsgSender
 
 
-async def delcache_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def delcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     /delcache <key>
     删除指定 key 的文件 ID 缓存。
@@ -26,7 +26,7 @@ async def delcache_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.message.reply_text(f"⚠️ 未找到缓存：{key}")
 
 
-async def showcache_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def showcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     /showcache [N]
     不带参数：列出全部 key
@@ -66,7 +66,7 @@ async def showcache_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await update.message.reply_text(text)
 
 
-async def getcache_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def getcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     /getcache <key>
     直接把缓存里的文件发出来，附带 title。

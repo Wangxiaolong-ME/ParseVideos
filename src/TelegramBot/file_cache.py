@@ -14,23 +14,29 @@ from typing import Union, List, Dict, Any
 logger = logging.getLogger(__name__)
 
 CACHE_FILE = Path(__file__).with_name("file_id_cache.json")
-# 统一的内部类型：dict[str, dict(title:str, value:str|list)]
-_cache: Dict[str, Dict[str, Union[str, List[str]]]] = {}
-_DEFAULT_TITLE = ""  # 目前暂时为空，可按需修改
+
+_cache: Dict[str, Dict[str, Any]] = {}
+_DEFAULT_TITLE = ""
 
 
 # ───────────────────────── 内部辅助 ──────────────────────────
-def _normalize_entry(raw: Any) -> Dict[str, Union[str, List[str]]]:
+def _normalize_entry(raw: Any) -> Dict[str, Any]:
     """
-    把磁盘读出的旧格式（str / list）或新格式统一转换成
-    {"title": str, "value": str|list} 结构。
+    旧格式只有 value/title，新格式补充 reply、parse_mode。
     """
-    # 新格式
     if isinstance(raw, dict) and "value" in raw:
-        title = raw.get("title", _DEFAULT_TITLE)
-        return {"title": title, "value": raw["value"]}
-    # 旧格式：直接是字符串或列表
-    return {"title": _DEFAULT_TITLE, "value": raw}
+        return {
+            "title": raw.get("title", _DEFAULT_TITLE),
+            "value": raw["value"],
+            "reply": raw.get("reply"),
+            "parse_mode": raw.get("parse_mode"),
+        }
+    return {
+        "title": _DEFAULT_TITLE,
+        "value": raw,
+        "reply": None,
+        "parse_mode": None,
+    }
 
 
 # ───────────────────────── I/O ──────────────────────────
@@ -67,7 +73,7 @@ def save() -> None:
     """
     tmp_path: Path | None = None
     try:
-        tmp_path = _atomic_write(json.dumps(_cache, ensure_ascii=False))
+        tmp_path = _atomic_write(json.dumps(_cache, ensure_ascii=False, indent=2))
         logger.info("save cache success.")
     except Exception:
         logger.error("保存缓存失败，保留旧文件不变。", exc_info=True)
@@ -87,6 +93,14 @@ def get(key: str) -> Union[str, List[str], None]:
     return None if entry is None else entry["value"]
 
 
+def get_full(key: str) -> dict | None:
+    """
+    返回整条缓存字典：{"value": ..., "reply": ..., "parse_mode": ...}
+    旧 key 不存在时返回 None
+    """
+    return _cache.get(key)
+
+
 def peek(key: str) -> Union[str, List[str], None]:
     """同 get，保持别名。"""
     return get(key)
@@ -97,25 +111,15 @@ def keys() -> List[str]:
     return list(_cache.keys())
 
 
-def put(key: str, file_id: Union[str, List[str]], *, title: str | None = None) -> None:
-    """
-    插入 / 更新缓存。保持旧签名兼容：旧代码仍可调用 put(key, file_id)。
-    新增可选参数 title（不传则保持之前的 title 或默认空）。
-    """
-    if not file_id:
-        logger.error("cache file_id = None! skip.")
-        return
-
-    if key in _cache:
-        # 保留旧 title，除非显式传入
-        entry = _cache[key]
-        entry["value"] = file_id
-        if title is not None:
-            entry["title"] = title
-    else:
-        _cache[key] = {"title": title or _DEFAULT_TITLE, "value": file_id}
-
-    logger.debug("put cache: %s → %s", key, _cache[key])
+def put(key, file_id, *, title: str | None = None, reply: list | None = None, parse_mode: str | None = None, ) -> None:
+    entry = _cache.setdefault(key, _normalize_entry({}))
+    entry.update(
+        value=file_id,
+        reply=reply if reply is not None else entry.get("reply"),
+        parse_mode=parse_mode if parse_mode is not None else entry.get("parse_mode"),
+    )
+    if title is not None:
+        entry["title"] = title
     save()
 
 
@@ -136,9 +140,10 @@ def delete(key: str) -> bool:
 def get_title(key: str) -> str | None:
     """返回指定 key 的 title，供日后需要时使用。"""
     entry = _cache.get(key)
+    if entry is None:
+        return None
     title = entry.get("title", "")
-    var = title.replace("\n", "")[:20]
-    return var
+    return title.replace("\n", "")[:20]
 
 
 def key_title_pairs() -> list[tuple[str, str]]:

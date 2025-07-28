@@ -53,6 +53,7 @@ class ParseResult:
     size_mb: float | None = None  # 文件大小
     audio_uri : str | None = None   # 音乐直链
     audio_title: str | None = None
+    html_title: str | None = None   # HTML格式化后的标题
 
     # ---- 特殊情况字段 ----
     text_message: str | None = None  # 如果需要直接发送文本消息（例如 >50MB 的链接）

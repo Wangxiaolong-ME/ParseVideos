@@ -108,14 +108,16 @@ class DouyinParser(BaseParser):
             quality_options = post.deduplicate_with_limit(quality_options)
             preview_option = quality_options[0]
         else:
-            quality_options.insert(0, preview_option)   # 作为首个展示用
             quality_options = post.deduplicate_with_limit(quality_options)
+            quality_options.insert(0, preview_option)   # 作为首个展示用
+            preview_option.is_default = True
+
 
         self.result.quality_options = quality_options
         self.result.needs_quality_selection = len(quality_options) > 0
 
         # 默认预览按钮
-        preview_option.is_default = True
+        # preview_option.is_default = True
 
         # 5. 下载并缓存这条预览视频
         gear = f"{preview_option.resolution}p"

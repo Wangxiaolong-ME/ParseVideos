@@ -7,7 +7,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, fil
 from TelegramBot.config import TELEGRAM_TOKEN_ENV, ADMIN_ID, MIN_MSG_INTERVAL
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.task_manager import TaskManager
-from TelegramBot.handlers import bilibili, douyin, music, general, status, notify, xiaohongshu, blacklist, cache
+from TelegramBot.handlers import bilibili, douyin, music, general, status, notify, xiaohongshu, blacklist, cache,parser
 
 
 def _inject_singletons(app):
@@ -42,10 +42,15 @@ def main() -> None:
 
     # 注册命令
     application.add_handler(CommandHandler("start", _start))
+    # 查询解析记录,支持参数 uid, 10:最新10个
+    application.add_handler(CommandHandler("showlog", parser.showlog_command))
 
-    application.add_handler(CommandHandler("getcache", cache.getcache_cmd))
-    application.add_handler(CommandHandler("delcache", cache.delcache_cmd))
-    application.add_handler(CommandHandler("showcache", cache.showcache_cmd))
+    # 查询缓存记录,参数 vid
+    application.add_handler(CommandHandler("getcache", cache.getcache_command))
+    application.add_handler(CommandHandler("delcache", cache.delcache_command))
+    application.add_handler(CommandHandler("showcache", cache.showcache_command))
+
+    # 查询添加黑名单, 参数 uid
     application.add_handler(CommandHandler("blacklist_add", blacklist.handle_blacklist_add_command))
     application.add_handler(CommandHandler("blacklist_remove", blacklist.handle_blacklist_remove_command))
     application.add_handler(CommandHandler("blacklist_show", blacklist.handle_blacklist_show_command))

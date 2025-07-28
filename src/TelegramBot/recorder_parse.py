@@ -5,6 +5,8 @@ from dataclasses import dataclass, asdict, field
 from datetime import datetime
 from pathlib import Path
 import logging
+from typing import Dict, Any, List
+
 log = logging.getLogger(__name__)
 
 STATS_FILE = Path(__file__).with_name("user_stats.json")
@@ -57,7 +59,6 @@ class UserRecordEntry:
     parse_success: bool = False  # 解析是否成功
     parse_exception: str = None  # 解析失败的异常信息
     cache_info: dict = field(default_factory=dict)  # 缓存相关信息，例如fid
-
 
 
 def _record_user_parse(info: UserParseResult):
@@ -214,3 +215,79 @@ def load_users() -> dict[int, dict]:
     }
 
     return users
+
+
+def _load_stats() -> Dict[str, Any]:
+    if not STATS_FILE.exists():
+        return {}
+    try:
+        with open(STATS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        log.error("读取统计文件失败: %s", e)
+        return {}
+
+
+DEFAULT_COUNT = 10
+
+
+def _parse_args(args: List[str]) -> tuple[int | None, int]:
+    """
+    返回 (uid, count)
+    - uid 为 None 表示跨所有用户
+    - count 至少 1
+    """
+    uid = None
+    count = DEFAULT_COUNT
+
+    if not args:  # showlog
+        return uid, count
+
+    # 只有一个参数
+    if len(args) == 1:
+        if args[0].isdigit():
+            # showlog 5   或   showlog 123456
+            val = int(args[0])
+            if val >= 10000:  # 粗判 UID (按 Telegram ID 习惯)
+                uid = val
+            else:
+                count = max(1, val)
+        else:
+            raise ValueError("参数必须是数字，例如: showlog 123456 或 showlog 5")
+        return uid, count
+
+    # 两个参数
+    if len(args) == 2:
+        if not (args[0].isdigit() and args[1].isdigit()):
+            raise ValueError("参数格式: showlog <uid> <条数>，两者均需为数字")
+        uid = int(args[0])
+        count = max(1, int(args[1]))
+        return uid, count
+
+    raise ValueError("参数过多，格式应为: showlog [uid] [条数]")
+
+
+def _collect_records(data: Dict[str, Any], uid: int | None) -> List[Dict[str, Any]]:
+    """
+    抽取并按时间倒序排序
+    """
+    records = []
+    if uid is None:
+        # 合并所有用户
+        for user in data.values():
+            records.extend(user.get("records", []))
+    else:
+        user = data.get(str(uid))
+        if not user:
+            return []
+        records.extend(user.get("records", []))
+
+    # 转成 datetime 方便排序；损坏行跳过
+    def _ts(rec):
+        try:
+            return datetime.fromisoformat(rec["timestamp"])
+        except Exception:
+            return datetime.min
+
+    records.sort(key=_ts, reverse=True)
+    return records
