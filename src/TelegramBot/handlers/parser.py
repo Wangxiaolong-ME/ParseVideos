@@ -50,6 +50,8 @@ async def showlog_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # -------- 副行：标题存在才输出 --------
         if title:
             lines.append(f"标题: {title[:15]}\n")  # 15 字截断，可按需调整
+        else:
+            lines.append("\n")
 
     # -------- 统计信息 --------
     lines.append(f"\n共展示 {min(count, len(records))} 条记录")
