@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from TelegramBot.config import ADMIN_ID
-from TelegramBot.file_cache import delete, key_title_pairs,peek, get_title
+from TelegramBot.file_cache import delete, key_title_pairs, peek, get_title
 from TelegramBot.handlers.generic_handler import _send_by_file_id
 from TelegramBot.utils import MsgSender
 
@@ -61,7 +61,8 @@ async def showcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
 
     # —— 构造输出文本 ——
-    lines = [f"{k}  {t.replace('\n',' ')[:15]}" if t else k for k, t in subset]
+    lines = [f"{k}  {t.replace(chr(10), ' ')[:15]}"  # chr(10) 等价于换行字符 \n，但不触发 f‑string 的语法限制。
+             if t else k for k, t in subset]
     text = "📄 缓存条目：\n" + "\n".join(lines)
     await update.message.reply_text(text)
 
@@ -88,7 +89,7 @@ async def getcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.reply_text(f"⚠️ 未找到缓存：{key}")
         return
 
-    title = get_title(key) or ""   # 空标题则不加 caption
+    title = get_title(key) or ""  # 空标题则不加 caption
 
     # —— 发文件：file_id 可能是 str 或 list[str] ——
     # 如果是列表，只取第一项；如需全发可改成循环。
@@ -96,7 +97,7 @@ async def getcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
     try:
         # sender 对象需具备 .send_*(...)，你的 _send_by_file_id 已封装好
-        sender = MsgSender(update)    # 大多数封装里 chat 本身即可
+        sender = MsgSender(update)  # 大多数封装里 chat 本身即可
         await _send_by_file_id(sender, fid_to_send, title)
     except Exception as e:
         await update.message.reply_text(f"file_id 无效或已过期：{e}")
