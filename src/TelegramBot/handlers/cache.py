@@ -29,7 +29,7 @@ async def delcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def showcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     /showcache [N]
-    不带参数：列出全部 key
+    不带参数：默认取后10个
     N > 0     ：列出前 N 条
     N < 0     ：列出后 |N| 条
     """
@@ -50,7 +50,7 @@ async def showcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     # —— 截取子集 ——
     if n is None or n == 0 or abs(n) >= len(all_pairs):
-        subset = all_pairs
+        subset = all_pairs[-10:]    # 默认不取全部了,取后10个
     elif n > 0:
         subset = all_pairs[:n]
     else:
