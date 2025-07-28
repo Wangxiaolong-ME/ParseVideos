@@ -34,13 +34,14 @@ async def showlog_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ── 构造输出文本（最新 count 条） ──
     lines = []
     for rec in records[:count]:
+        uname = rec.get("full_name")
         ts = rec.get("timestamp", "")[:19].replace("T", " ")
         hit = "缓存命中" if rec.get("is_cached_hit") else "新解析"
         uid, vid = rec.get("uid"), rec.get("vid")
         title = (rec.get("title") or "").replace("\n", " ").strip()
 
         # 主行 & UID/VID 行
-        lines.append(f"[{ts}] {hit}")
+        lines.append(f"[{ts}] {uname} {hit}")
         lines.append(f"UID: {uid} | VID: {vid}")
 
         # 副行：有标题则输出标题
