@@ -3,6 +3,7 @@ import asyncio
 import time
 
 import httpx, pathlib, logging
+from telegram import Message
 
 from TelegramBot.utils import MsgSender
 
@@ -14,13 +15,14 @@ CATBOX_URL = "https://catbox.moe/user/api.php"
 class ProgressFile:
     """文件包装器：每次 read 后异步更新进度消息"""
 
-    def __init__(self, path: pathlib.Path, progress_msg, chunk: int = 1 << 20):
+    def __init__(self, path: pathlib.Path, progress_msg, chunk: int = 1 << 20, flag_text=''):
         self._f = path.open("rb")
         self.size = path.stat().st_size
         self.sent = 0
         self.last = time.perf_counter()
         self.chunk = chunk
         self._msg = progress_msg  # telegram.Message
+        self.flag = flag_text
 
     def _maybe_update(self):
         now = time.perf_counter()
@@ -33,10 +35,11 @@ class ProgressFile:
             # -1让最终100%为 99%
             pct -= 1
             # 实时更新进度信息，进度条长度和 '=' 数量变化
-            asyncio.get_running_loop().create_task(
-                self._msg.edit_text(f"上传中 {bar} {pct:5.1f} %")
-            )
-            self.last = now
+            if num_equals >0:
+                asyncio.get_running_loop().create_task(
+                    self._msg.edit_text(f"{self.flag}上传中 {bar} {pct:5.1f} %")
+                )
+                self.last = now
 
     def read(self, n: int = -1):
         data = self._f.read(n if n > 0 else self.chunk)
@@ -63,24 +66,21 @@ def _fmt(b: int, unit: str = "MB") -> str:
     return f"{b / factor:.1f} {unit.upper()}"
 
 
-async def upload(path: pathlib.Path, sender: MsgSender | None = None):
+async def upload(path: pathlib.Path, sender: MsgSender, progress_msg: Message | None = None):
     """
     上传至 Catbox，实时在同一条消息里刷新进度。
     返回直链 URL。
     """
-    # 配置代理地址（假设代理为 HTTP 协议）
-    proxy_url = "http://127.0.0.1:7890"
-    prams = {}
-    # if PROXY_SWITCH:
-    #     prams["proxy"] = proxy_url
-    #     logger.debug(f"当前系统为Windows，已开启代理")
 
     start = time.perf_counter()
-
+    flag_text = "视频较大，改用上传至三方平台预览…\n"
     # ① 先发占位消息并显示上传状态
-    progress_msg = await sender.send("上传中 0 %")
+    send_flag = False
+    if not progress_msg:
+        send_flag = True
+        progress_msg = await sender.send(f"{flag_text}上传中 0 %", reply=False)
 
-    pf = ProgressFile(path, progress_msg)  # ← 传入消息实例
+    pf = ProgressFile(path, progress_msg, flag_text=flag_text)  # ← 传入消息实例
     data = {"reqtype": "fileupload"}
     files = {"fileToUpload": (path.name, pf, "application/octet-stream")}
 
@@ -90,7 +90,8 @@ async def upload(path: pathlib.Path, sender: MsgSender | None = None):
     pf.close()
 
     url = r.text.strip()
-    await progress_msg.delete()  # 最终 100 %
+    if send_flag:
+        await progress_msg.delete()  # 最终 100 %
 
     logger.info("Catbox 上传完成 → %s (耗时 %.1f s)", url, time.perf_counter() - start)
     return url

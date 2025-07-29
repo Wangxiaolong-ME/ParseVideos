@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+
+from cryptography.hazmat.primitives.keywrap import aes_key_wrap
 from telegram.helpers import escape_markdown
 
 from BilibiliDownload.bilibili_post import BilibiliPost
@@ -19,6 +21,7 @@ from PublicMethods.tools import check_file_size
 from TelegramBot.config import BILI_SAVE_DIR, BILI_COOKIE
 from .base import BaseParser, ParseResult
 from PublicMethods.functool_timeout import retry_on_timeout
+from TelegramBot.uploader import upload
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +60,7 @@ class BilibiliParser(BaseParser):
                 return self._parse_preview(post)
 
             # ② 正常番剧/视频
-            return self._parse_video(post)
+            return await self._parse_video(post)
 
         except Exception as e:  # pragma: no cover
             logger.exception("Bilibili 解析失败: %s", e)
@@ -85,7 +88,7 @@ class BilibiliParser(BaseParser):
         return self.result
 
     @retry_on_timeout(40, 2)
-    def _parse_video(self, post: BilibiliPost) -> ParseResult:
+    async def _parse_video(self, post: BilibiliPost) -> ParseResult:
         """常规 bilibili 视频解析+合并。"""
         # ---- 预处理 ----
         post.filter_by_size(max_mb=50)
@@ -103,19 +106,14 @@ class BilibiliParser(BaseParser):
         self.result.duration = post.duration
         logger.debug("初始化size: %sMB", post.size_mb)  # 保留原日志
 
-        # ---- >50 MB 文件：直接返回 Markdown 链接 ----
+        # ---- >50 MB 文件：继续走常规下载 & 上传 ----
         if post.size_mb > 50:
-            md_link = (
-                f"[{escape_markdown(self.result.title, version=2)}]"
-                f"({escape_markdown(url, version=2)})"
-            )
-            self.result.text_message = (
-                f"✅ 上传完成！由于视频超过 50 MB，请点击下方链接下载：\n{md_link}"
-            )
-            self.result.content_type = 'link'
-            self.result.success = True
-            logger.debug("文件大于50MB，返回直链Markdown.")
-            return self.result
+            post.filter_by_size(max_mb=150)
+            vpath, apath = post.download()
+            out = post.merge(vpath, apath)
+            local_path = Path(out)
+            self.result.size_mb = check_file_size(local_path, ndigits=2)
+            logger.debug("合并完成，大文件 %.2f MB", self.result.size_mb)
 
         # ---- 50 MB 以内：查看本地 / 下载 / 合并 ----
         if not local_path.exists():

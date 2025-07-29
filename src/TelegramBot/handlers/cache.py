@@ -86,6 +86,7 @@ async def getcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     key = context.args[0]
     entry = get_full(key)
     title = ''
+    special = ''
     if not entry:  # 旧缓存是 str，新缓存是 dict
         await update.message.reply_text(f"⚠️ 未找到缓存：{key}")
         return
@@ -95,6 +96,7 @@ async def getcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         file_id = entry["value"]
         rm_data = entry.get("reply")
         parse_mode = entry.get("parse_mode") or 'HTML'
+        special = entry.get("special") or ''
     else:  # 兼容旧格式
         file_id = entry
         rm_data = None
@@ -110,6 +112,7 @@ async def getcache_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             title,  # caption
             reply_markup=rm_obj,
             parse_mode=parse_mode,
+            special=special,
         )
     except Exception as e:
         await update.message.reply_text(f"file_id 无效或已过期：{e}")

@@ -30,12 +30,14 @@ def _normalize_entry(raw: Any) -> Dict[str, Any]:
             "value": raw["value"],
             "reply": raw.get("reply"),
             "parse_mode": raw.get("parse_mode"),
+            "special": raw.get("special"),
         }
     return {
         "title": _DEFAULT_TITLE,
         "value": raw,
         "reply": None,
         "parse_mode": None,
+        "special": None,
     }
 
 
@@ -112,12 +114,14 @@ def keys() -> List[str]:
     return list(_cache.keys())
 
 
-def put(key, file_id, *, title: str | None = None, reply: list | None = None, parse_mode: str | None = None, ) -> None:
+def put(key, file_id, *, title: str | None = None, reply: list | None = None, parse_mode: str | None = None,
+        special: str = "normal") -> None:
     entry = _cache.setdefault(key, _normalize_entry({}))
     entry.update(
         value=file_id,
         reply=reply if reply is not None else entry.get("reply"),
         parse_mode=parse_mode if parse_mode is not None else entry.get("parse_mode"),
+        special=special,
     )
     logger.debug(f"put cache, key:{key}")
     if title is not None:
