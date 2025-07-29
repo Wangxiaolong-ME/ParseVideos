@@ -673,9 +673,9 @@ class Downloader:
 
                     # 最终文件替换
                     os.replace(tmp_path, path)
-                    logger.info(f"单线程下载成功到: {path}")
+                    # logger.info(f"单线程下载成功到: {path}")
                     logger.info(
-                        f"单线程下载成功到: {path} (总耗时: {time.perf_counter() - single_download_start_time:.4f}秒)")  # <--- 在这里增加结束打点
+                        f"单线程下载成功 (总耗时: {time.perf_counter() - single_download_start_time:.4f}秒)")  # <--- 在这里增加结束打点
 
                     return path
             except requests.exceptions.RequestException as e:

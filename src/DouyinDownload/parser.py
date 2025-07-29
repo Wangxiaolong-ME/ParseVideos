@@ -1,4 +1,4 @@
-# parser.py
+# scraper.py
 """
 负责从抖音URL解析出视频的详细信息。
 Responsible for parsing detailed video information from a Douyin URL.
@@ -226,7 +226,16 @@ class DouyinParser:
         music = aweme_detail.get("music")
 
         if music:
-            uri = music.get(uri_flag, {}).get('uri', '')
+            url_info_flag = ['play_url', 'playUrl']
+            uri_flag = ['uri', 'url']
+            info = {}
+            for flag in url_info_flag:
+                if info := music.get(flag):
+                    break
+            uri = ""
+            for flag in uri_flag:
+                if uri := info.get(flag):
+                    break
             if not uri:
                 log.warning("走兜底获取音频链接")
                 video = aweme_detail.get('video', {})
@@ -235,7 +244,7 @@ class DouyinParser:
             music_option = AudioOptions(
                 title=music.get('title', '未知'),
                 author=music.get('author', '未知'),
-                uri=uri
+                url=uri
             )
             if uri:
                 log.debug("音频链接获取成功")
@@ -319,7 +328,7 @@ class DouyinParser:
                             {
                                  "width": 1056,
                                  "height": 1920,
-                                 "uri": "tos-cn-i-0813/b4e8b236b5904f95810cb6691c4e8cc9",
+                                 "url": "tos-cn-i-0813/b4e8b236b5904f95810cb6691c4e8cc9",
                                  "urlList": [
                                       "https://p3-pc-sign.douyinpic.com/tos-cn-i-0813/b4e8b236b5xx",
                                       "https://p9-pc-sign.douyinpic.com/tos-cn-i-0813/b4e8b236b5xx",

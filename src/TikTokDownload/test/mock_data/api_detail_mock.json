@@ -1,0 +1,91 @@
+{
+  "item_info": {
+    "item_struct": {
+      "aweme_id": "7123456789012345678",
+      "desc": "这是一个API测试视频的描述 #API测试",
+      "create_time": 1678886400,
+      "author": {
+        "uid": "123456789",
+        "nickname": "API测试用户"
+      },
+      "region": "JP",
+      "video": {
+        "id": "v7123456789012345678",
+        "duration": 20,
+        "height": 1080,
+        "width": 720,
+        "cover": {
+          "url_list": ["https://example.com/tiktok_api_video_cover.jpg"]
+        },
+        "bit_rate": [
+          {
+            "bit_rate": 2500,
+            "format": "mp4",
+            "play_addr": {
+              "url_list": ["https://example.com/tiktok_api_video_1080p.mp4?nodewatermark=1"],
+              "data_size": 25971520,
+              "height": 1080,
+              "width": 720
+            },
+            "gear_name": "h264_api_1080"
+          },
+          {
+            "bit_rate": 1200,
+            "format": "mp4",
+            "play_addr": {
+              "url_list": ["https://example.com/tiktok_api_video_720p.mp4?nodewatermark=1"],
+              "data_size": 12485760,
+              "height": 720,
+              "width": 480
+            },
+            "gear_name": "h264_api_720"
+          }
+        ]
+      },
+      "image_post_info": {
+        "images": [
+          {
+            "uri": "api_img1_uri",
+            "url_list": ["https://example.com/tiktok_api_image_1_large.jpg"],
+            "download_url_list": ["https://example.com/tiktok_api_image_1_download.jpg"],
+            "width": 1080,
+            "height": 1920
+          }
+        ]
+      },
+      "music": {
+        "id": "api_music_id",
+        "title": "API测试背景音乐",
+        "author": "API音乐作者",
+        "duration": 35,
+        "play_url": {
+          "url_list": ["https://example.com/tiktok_api_music.mp3"]
+        },
+        "cover_hd": {
+          "url_list": ["https://example.com/tiktok_api_music_cover.jpg"]
+        },
+        "album": "API测试专辑"
+      },
+      "statistics": {
+        "play_count": 200000,
+        "digg_count": 6000,
+        "comment_count": 250,
+        "share_count": 120
+      },
+      "text_extra": [
+        {
+          "type": 1,
+          "hashtag_name": "API标签一"
+        },
+        {
+          "type": 1,
+          "hashtag_name": "API标签二"
+        },
+        {
+          "type": 0,
+          "aweme_id": "other_id"
+        }
+      ]
+    }
+  }
+}

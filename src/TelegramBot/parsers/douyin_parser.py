@@ -7,7 +7,8 @@ from telegram.helpers import escape_markdown
 
 from DouyinDownload.douyin_post import DouyinPost
 from DouyinDownload.douyin_image_post import DouyinImagePost
-from TelegramBot.config import DOWNLOAD_TIMEOUT, PREVIEW_SIZE, DOUYIN_FETCH_IMAGE_TIMEOUT, DOUYIN_FETCH_VIDEO_TIMEOUT
+from TelegramBot.config import DOWNLOAD_TIMEOUT, PREVIEW_SIZE, DOUYIN_FETCH_IMAGE_TIMEOUT, DOUYIN_FETCH_VIDEO_TIMEOUT, \
+    EXCLUDE_RESOLUTION
 from .base import BaseParser, ParseResult, VideoQualityOption
 from PublicMethods.functool_timeout import retry_on_timeout_async
 
@@ -63,13 +64,13 @@ class DouyinParser(BaseParser):
 
     async def _parse_audio(self, post):
         if post.audio:
-            self.result.audio_uri = post.audio.uri
+            self.result.audio_uri = post.audio.url
             self.result.audio_title = post.audio.title
 
     async def _parse_video(self, post: DouyinPost) -> ParseResult:
         """解析视频并提供多分辨率选项"""
         # 获取所有可用的视频选项
-        post.sort_options(by='resolution', descending=True, exclude_resolution=[1440, 2160])  # 按分辨率降序排列
+        post.sort_options(by='resolution', descending=True, exclude_resolution=EXCLUDE_RESOLUTION)  # 按分辨率降序排列
         # post.deduplicate_by_resolution(keep='highest_bitrate')  # 每个分辨率保留最高码率
 
         # 填充基本信息
@@ -99,19 +100,23 @@ class DouyinParser(BaseParser):
             # 3. 一次性传参
             quality_options.append(VideoQualityOption(**params))
 
-        preview_option = (
-                post.pick_option_under_size(quality_options, max_mb=PREVIEW_SIZE)  # ≤ PREVIEW_SIZE
-                or post.pick_option_under_size(quality_options, max_mb=50)  # ≤ 50MB
-        )
+        preview_option = None
+        if option := post.pick_option_under_size(quality_options, max_mb=PREVIEW_SIZE):
+            preview_option = option
+            logger.info(f"匹配到小于 {PREVIEW_SIZE}M 的预览视频")
+        if not preview_option:
+            if option := post.pick_option_under_size(quality_options, max_mb=50):
+                preview_option = option
+                logger.info(f"匹配到小于 50M 的预览视频")
+
         # 兜底：选取整个列表里码率最高
         if not preview_option:
             quality_options = post.deduplicate_with_limit(quality_options)
             preview_option = quality_options[0]
         else:
             quality_options = post.deduplicate_with_limit(quality_options)
-            quality_options.insert(0, preview_option)   # 作为首个展示用
+            quality_options.insert(0, preview_option)  # 作为首个展示用
             preview_option.is_default = True
-
 
         self.result.quality_options = quality_options
         self.result.needs_quality_selection = len(quality_options) > 0

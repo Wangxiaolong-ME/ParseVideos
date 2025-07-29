@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List, Union
 
+from prompt_toolkit.input.win32 import attach_win32_input
 from telegram import Update, Message, InputMediaPhoto, InputMediaVideo, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
 from telegram.error import BadRequest
@@ -15,13 +16,14 @@ from telegram.helpers import escape_markdown
 
 from TelegramBot.cleaner import purge_old_files
 from TelegramBot.config import EXCEPTION_MSG, MAX_THREAD_WORKERS, BILI_PREVIEW_VIDEO_TITLE, ADMIN_ID, USAGE_TEXT, \
-    DOUYIN_OVER_SIZE, IMAGES_CACHE_SWITCH
+    DOUYIN_OVER_SIZE, IMAGES_CACHE_SWITCH, LESS_FLAG
 from TelegramBot.task_manager import TaskManager
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.utils import MsgSender
 from TelegramBot.file_cache import put as cache_put, delete as cache_del, get_full as cache_get_full
 from TelegramBot.recorder_parse import UserParseResult, _record_user_parse
 from TelegramBot.parsers.base import BaseParser, ParseResult
+from TelegramBot.uploader import upload
 
 executor = ThreadPoolExecutor(max_workers=MAX_THREAD_WORKERS)
 rate_limiter = RateLimiter(min_interval=3.0)  # 示例值
@@ -116,26 +118,31 @@ async def generic_command_handler(
         # 检查 file_id 缓存
         if vid:
             entry = cache_get_full(vid)
-            logger.debug(f"命中缓存vid -----> {vid}")
             if entry:  # 旧缓存是 str，新缓存是 dict
+                logger.debug(f"命中缓存vid -----> {vid}")
                 if isinstance(entry, dict):
                     title = entry["title"]
                     file_id = entry["value"]
                     rm_data = entry.get("reply")
                     parse_mode = entry.get("parse_mode") or ParseMode.HTML
+                    special = entry.get("special")
                 else:  # 兼容旧格式
                     file_id = entry
                     rm_data = None
                     parse_mode = ParseMode.HTML
+                    special = ''
 
-                if IMAGES_CACHE_SWITCH:  # 图集是否走缓存开关
+                if IMAGES_CACHE_SWITCH and isinstance(file_id, list):  # 图集是否走缓存开关
+                    pass
+                else:
                     rm_obj = InlineKeyboardMarkup(rm_data) if rm_data else None
                     await _send_by_file_id(
                         sender,
                         file_id,
-                        title,  # caption
+                        title,
                         reply_markup=rm_obj,
                         parse_mode=parse_mode,
+                        special=special,
                     )
                     record.success = True
                     return record.success
@@ -171,7 +178,7 @@ async def generic_command_handler(
             await sender.send(
                 parse_result.text_message,
                 parse_mode=ParseMode.MARKDOWN_V2,
-                disable_web_page_preview=True
+                reply=False,
             )
             record.success = True
             return True
@@ -188,11 +195,11 @@ async def generic_command_handler(
             logger.info(f"质量选项数量: {len(parse_result.quality_options)}")
 
             # 直接显示分辨率选择按钮（标题包含预览链接）
-            msg, rm = await _send_quality_selection(sender, parse_result, progress_msg)
+            msg, rm = await _send_quality_selection(sender, parse_result, progress_msg, record)
         else:
             # ---- 5. 上传文件并缓存 file_id ----
             logger.info(f"_upload_and_send 上传文件并缓存 file_id")
-            msg = await _upload_and_send(sender, parse_result, progress_msg)
+            msg = await _upload_and_send(sender, parse_result, progress_msg, record)
 
         # 缓存新的 file_id
         if msg and parse_result.vid:
@@ -292,10 +299,19 @@ def _extract_file_id(msg: Message) -> str | None:
 
 async def _send_by_file_id(sender: MsgSender, file_id: str or list, caption: str, *,
                            reply_markup: InlineKeyboardMarkup | None = None,
-                           parse_mode: str | None = ParseMode.HTML, ):
+                           parse_mode: str | None = ParseMode.HTML, special: str):
     """使用缓存的file_id发送 (此处可以扩展支持不同类型)"""
+
+    # 如果value是链接,直接复制文本框内容发送,这种是上传三方平台用于预览下载视频的
+    if special =="catbox" or 'catbox' in file_id:
+        return await sender.send(
+            text=caption,
+            parse_mode=parse_mode,
+            reply=False,
+        )
+
     # 如果是单个 file_id，直接发送文档
-    if isinstance(file_id, str):
+    elif isinstance(file_id, str):
         return await sender.send_document(
             file_id,
             caption=caption,
@@ -336,7 +352,7 @@ def _handle_special_field(result: ParseResult):
         result.title = f"{result.title}\n{BILI_PREVIEW_VIDEO_TITLE}"
 
 
-async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg: Message):
+async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg: Message, record):
     """根据内容类型上传并发送文件"""
     content_type = result.content_type
 
@@ -344,6 +360,27 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
     if content_type in ["video", "audio"] and result.media_items:
         item = result.media_items[0]
         if content_type == "video":
+            if result.size_mb > 50:
+                if progress_msg:
+                    await progress_msg.delete()
+                progress_msg = await sender.send("视频较大，改用上传至三方平台预览…", reply=False)
+                # 这里主要是B站合并后的大文件上传至三方在线平台,可以通过直链点进去观看下载
+                await sender.upload()
+                try:
+                    _handle_special_field(result)
+                    url = await upload(item.local_path, sender, progress_msg)
+                    record.parsed_url = url
+                    result.html_title = f"<a href=\"{url}\"><b>标题：{result.title}</b></a>"
+                    text = f"✅ 上传完成！\n 由于视频超过 50 MB，请点击下方链接下载：\n{result.html_title}"
+                    text += f"\n\n{LESS_FLAG}"
+                    # 上传成功后，存入缓存
+                    cache_put(result.vid, url, title=text, parse_mode="HTML", special="catbox")
+                    return await progress_msg.edit_text(
+                        text,
+                        parse_mode=ParseMode.HTML,
+                    )
+                except Exception as e:
+                    raise Exception(f"发送大视频文档失败: {e}")
             await progress_msg.edit_text("视频下载完成，正在上传...")
             try:
                 _handle_special_field(result)
@@ -402,7 +439,8 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
                             parse_mode=ParseMode.HTML,
                             width=item.width,
                             height=item.height,
-                            duration=item.duration
+                            duration=item.duration,
+                            supports_streaming=True,
                         )
                     )
                     logger.debug(f"向媒体集添加视频: {item.local_path}")
@@ -447,7 +485,8 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
         return None
 
 
-async def _send_quality_selection(sender: MsgSender, result: ParseResult, progress_msg: Message):
+async def _send_quality_selection(sender: MsgSender, result: ParseResult, progress_msg: Message,
+                                  record: UserParseResult):
     """发送分辨率选择按钮"""
     if not result.quality_options:
         await sender.send("没有可用的分辨率选项")
@@ -487,7 +526,8 @@ async def _send_quality_selection(sender: MsgSender, result: ParseResult, progre
 
     # 构造音频下载按钮
     if result.audio_uri:
-        audio_btn = InlineKeyboardButton(text=f"下载背景乐 {result.audio_title}", url=result.audio_uri)
+        text = f"🎵 MUSIC ({result.audio_title})"
+        audio_btn = InlineKeyboardButton(text=text, url=result.audio_uri)
 
         # 如果最后一行不足 2 个，就直接 append 到最后一行
         if keyboard and len(keyboard[-1]) < 2:
@@ -528,7 +568,6 @@ async def _send_quality_selection(sender: MsgSender, result: ParseResult, progre
         message_text += f"\n共找到 {len(result.quality_options)} 个分辨率选项"
 
     # 不再需要存储质量选项，因为使用URL按钮直接跳转
-
     try:
         if result.size_mb > 50:
             raise Exception("视频体积超50M")

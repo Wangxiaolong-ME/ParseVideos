@@ -1,10 +1,9 @@
 import re
 from telegram import Update, ReplyKeyboardRemove
 from telegram.ext import ContextTypes
-from TelegramBot.handlers import bilibili, douyin, music, xiaohongshu, unknow
+from TelegramBot.handlers import bilibili, douyin, music, xiaohongshu, unknow, tiktok
 from TelegramBot.config import ADMIN_ID, EXCEPTION_MSG
 from TelegramBot.recorder_blacklist import load_blacklist
-from TelegramBot.utils import MsgSender
 import logging
 
 logger = logging.getLogger(__name__)
@@ -50,6 +49,13 @@ async def handle_general_url(update: Update, context: ContextTypes.DEFAULT_TYPE)
             r = await xiaohongshu.xhs_command(update, context, is_command=False)
         except Exception as e:
             logger.error(f"xhs_command 失败: {e}")
+            await update.effective_message.reply_text(EXCEPTION_MSG, quote=True)
+    elif m := re.search(r'(https?://(?:vm|vt)\.tiktok\.com/[-\w/]+)|(https?://www\.tiktok\.com/[\S]+)', text):
+        try:
+            platform = "tiktok"
+            r = await tiktok.tiktok_command(update, context, is_command=False)
+        except Exception as e:
+            logger.error(f"tiktok_command 失败: {e}")
             await update.effective_message.reply_text(EXCEPTION_MSG, quote=True)
     else:
         try:

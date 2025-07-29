@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Union, Literal, Optional
 
 from DouyinDownload.models import VideoOption,AudioOptions
+from TikTokDownload.models import TikTokVideoOption
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,11 @@ class VideoQualityOption(VideoOption):
     size_mb: float  # 文件大小
     is_default: bool = False  # 是否默认选项（50M以内头部展示）
 
+@dataclass
+class TikTokVideoQualityOption(TikTokVideoOption):
+    """视频质量选项，用于按钮选择"""
+    size_mb: float  # 文件大小
+    is_default: bool = False  # 是否默认选项（50M以内头部展示）
 
 @dataclass
 class ParseResult:

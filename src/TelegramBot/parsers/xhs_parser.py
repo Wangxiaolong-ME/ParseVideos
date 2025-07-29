@@ -31,8 +31,8 @@ class XiaohongshuParser(BaseParser):
         title = f"<b>{self.data['title']}</b>"
         if self.data['description']:
             desc = self.data['description']
-            desc = desc.replace('\t', '\n\n')
-            title += f"\n\n{desc}"
+            desc = desc.replace('\t', '\n')
+            title += f"\n{desc}"
         self.result.vid = vid
         self.result.title = title
         return vid, title

@@ -53,7 +53,7 @@ class ImageOptions:
 class AudioOptions:
     title: str
     author: str
-    uri: str
+    url: str
 
 
 @dataclass

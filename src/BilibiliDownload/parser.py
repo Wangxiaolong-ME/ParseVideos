@@ -1,4 +1,4 @@
-# parser.py
+# scraper.py
 """
 解析 Bilibili __playinfo__ 和 __INITIAL_STATE__，提取 DASH 流列表。
 """

@@ -164,7 +164,7 @@ class TestDouyinPost:
         douyin_post.processed_video_options = self.MOCK_VIDEO_OPTIONS.copy()
         
         # 按码率降序排序
-        douyin_post.sort_options(by='bitrate', descending=True)
+        douyin_post.sort_options(by='bit_rate', descending=True)
         bitrates = [opt.bitrate for opt in douyin_post.processed_video_options]
         assert bitrates == [2000000, 1000000, 500000]
     

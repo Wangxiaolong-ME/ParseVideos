@@ -1,0 +1,98 @@
+{
+  "WebAppPage": {
+    "itemInfo": {
+      "itemStruct": {
+        "id": "7123456789012345678",
+        "desc": "这是一个测试视频的描述 #测试 #TikTok",
+        "createTime": 1678886400,
+        "author": {
+          "id": "123456789",
+          "nickname": "测试用户"
+        },
+        "region": "US",
+        "video": {
+          "id": "v7123456789012345678",
+          "duration": 15,
+          "height": 1080,
+          "width": 720,
+          "cover": {
+            "url_list": ["https://example.com/tiktok_video_cover.jpg"]
+          },
+          "bit_rate": [
+            {
+              "bit_rate": 2000,
+              "resolution": "1080p",
+              "format": "mp4",
+              "play_addr": {
+                "url_list": ["https://example.com/tiktok_video_1080p.mp4?nodewatermark=1"],
+                "data_size": 20971520,
+                "height": 1080,
+                "width": 720
+              },
+              "gear_name": "h264_normal_1080"
+            },
+            {
+              "bit_rate": 1000,
+              "resolution": "720p",
+              "format": "mp4",
+              "play_addr": {
+                "url_list": ["https://example.com/tiktok_video_720p.mp4?nodewatermark=1"],
+                "data_size": 10485760,
+                "height": 720,
+                "width": 480
+              },
+              "gear_name": "h264_normal_720"
+            }
+          ]
+        },
+        "imagePost": {
+          "images": [
+            {
+              "uri": "img1_uri",
+              "url_list": ["https://example.com/tiktok_image_1_large.jpg", "https://example.com/tiktok_image_1_medium.jpg"],
+              "download_url_list": ["https://example.com/tiktok_image_1_download.jpg"],
+              "width": 1080,
+              "height": 1920
+            },
+            {
+              "uri": "img2_uri",
+              "url_list": ["https://example.com/tiktok_image_2_large.jpg"],
+              "download_url_list": ["https://example.com/tiktok_image_2_download.jpg"],
+              "width": 1080,
+              "height": 1920
+            }
+          ]
+        },
+        "music": {
+          "id": "78901234567",
+          "title": "测试背景音乐",
+          "author": "音乐作者",
+          "duration": 30,
+          "play_url": {
+            "url_list": ["https://example.com/tiktok_music.mp3"]
+          },
+          "cover_hd": {
+            "url_list": ["https://example.com/tiktok_music_cover.jpg"]
+          },
+          "album": "测试专辑"
+        },
+        "stats": {
+          "playCount": 100000,
+          "diggCount": 5000,
+          "commentCount": 200,
+          "shareCount": 100
+        },
+        "challengeInfo": {
+          "challenge": [
+            {
+              "challengeName": "挑战一"
+            },
+            {
+              "challengeName": "挑战二"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

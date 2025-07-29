@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-
+from typing import Any, List, Optional, Union
 from requests import PreparedRequest
 from shlex import quote as sh
 
@@ -34,3 +34,45 @@ def prepared_to_curl(prep: PreparedRequest) -> str:
         cmd += ["--data-binary", sh(prep.body if isinstance(prep.body, str) else prep.body.decode())]
     cmd.append(sh(prep.url))
     return ' '.join(cmd)
+
+# 嵌套JSON直取目标值
+def collect_values(
+    obj: Any,
+    target_key: str,
+    parent_path: str | None = None
+) -> Optional[Union[Any, List[Any]]] or dict:
+    """
+    在嵌套 dict / list 结构中查找：
+        • 父级键路径后缀 == parent_path（为空则忽略）
+        • 且当前 dict 包含 target_key
+    返回规则：
+        • 0 个命中  → None
+        • 1 个命中  → 单值，保持原始类型
+        • ≥2 个命中 → 列表
+    """
+    path_parts = parent_path.split('.') if parent_path else []
+    matches: List[Any] = []
+
+    def dfs(node: Any, key_stack: List[str]) -> None:
+        if isinstance(node, dict):
+            # 满足父级路径条件时收集
+            if (not path_parts or
+                len(key_stack) >= len(path_parts) and
+                key_stack[-len(path_parts):] == path_parts):
+                if target_key in node:
+                    matches.append(node[target_key])
+
+            for k, v in node.items():
+                dfs(v, key_stack + [k])
+
+        elif isinstance(node, list):
+            for item in node:
+                dfs(item, key_stack)
+
+    dfs(obj, [])
+
+    if not matches:
+        return None
+    if len(matches) == 1:
+        return matches[0]
+    return matches

@@ -35,7 +35,7 @@ class TestMusicDownloadCore:
             "album": "测试专辑",
             "duration": 240000,  # 4分钟，毫秒
             "size": 5242880,    # 5MB，字节
-            "bitrate": 320000   # 320kbps
+            "bit_rate": 320000   # 320kbps
         }
     }
     

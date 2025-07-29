@@ -10,7 +10,7 @@ from telegram.constants import ChatAction, ParseMode
 import logging
 
 from PublicMethods.functool_timeout import retry_on_timeout_async
-from TelegramBot.config import SEND_TEXT_TIMEOUT,SEND_VIDEO_TIMEOUT,SEND_MEDIA_GROUP_TIMEOUT
+from TelegramBot.config import SEND_TEXT_TIMEOUT,SEND_VIDEO_TIMEOUT,SEND_MEDIA_GROUP_TIMEOUT,LESS_FLAG
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +41,16 @@ class MsgSender:
         self.msg: Message = update.effective_message
         self._bot = update.get_bot()  # ⚡ 取 bot 句柄
         self._chat_id = update.effective_chat.id
+
+    # --- 统一追加签名 ---
+    @staticmethod
+    def _add_sig(text: str | None) -> str | None:
+        if text is None:
+            return LESS_FLAG.lstrip()
+        if LESS_FLAG.strip() in text:
+            return text                     # 防止重复
+        # 避免多余空行，先去掉末尾换行再拼接
+        return f"{text.rstrip()}\n\n{LESS_FLAG}"
 
     async def react(
             self,
@@ -143,7 +153,7 @@ class MsgSender:
         try:
             msg: Message = await self.msg.reply_document(
                 document=document,
-                caption=caption,
+                caption=self._add_sig(caption),
                 quote=reply,  # True → 回复原消息
                 write_timeout=20,
                 read_timeout=20,
@@ -247,7 +257,7 @@ class MsgSender:
         try:
             msg: Message = await self.msg.reply_video(
                 video=video,
-                caption=caption,
+                caption=self._add_sig(caption),
                 duration=duration,
                 width=width,
                 height=height,
