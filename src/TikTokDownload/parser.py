@@ -226,20 +226,20 @@ class TikTokParser:
             elif height:  # 兜底使用 height
                 resolution = height
 
-            video_files.append(
-                TikTokVideoOption(
-                    aweme_id=aweme_id,
-                    resolution=resolution,
-                    bit_rate=bitrate,
-                    url=chosen_url,
-                    size_mb=size_mb,
-                    gear_name=gear_name,
-                    quality=item.get("QualityType", ""),
-                    height=height,
-                    width=width,
-                    duration=duration
-                )
+            r = TikTokVideoOption(
+                aweme_id=aweme_id,
+                resolution=resolution,
+                bit_rate=bitrate,
+                url=chosen_url,
+                size_mb=size_mb,
+                gear_name=gear_name,
+                quality=item.get("QualityType", ""),
+                height=height,
+                width=width,
+                duration=duration
             )
+            log.debug(f"解析视频流数据: {r.to_dict()}")
+            video_files.append(r)
         return video_files
 
     def parse_universal_data_to_tiktok_post(self, universal_data: Dict[str, Any]) -> TikTokPost:

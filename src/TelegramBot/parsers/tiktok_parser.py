@@ -7,7 +7,7 @@ from typing import Any, Coroutine, List, Optional
 
 
 from TikTokDownload.tiktok_post import TikTokPostManager
-from TelegramBot.config import DOWNLOAD_TIMEOUT, PREVIEW_SIZE
+from TelegramBot.config import DOWNLOAD_TIMEOUT, PREVIEW_SIZE, TIKTOK_NEEDS_QUALITY_SELECTION_SWITCH
 from .base import BaseParser, ParseResult, VideoQualityOption
 from PublicMethods.functool_timeout import retry_on_timeout_async
 
@@ -142,8 +142,13 @@ class TikTokParser(BaseParser):
             # 将预览选项放置在索引 0 处以方便 UI
             quality_options = [preview_option] + [q for q in quality_options if q is not preview_option]
 
+        if TIKTOK_NEEDS_QUALITY_SELECTION_SWITCH:
+            # 将最后视频对象中的URL都重定向一遍替换为真实下载地址
+            for option in quality_options:
+                option.download_url = post._get_real_download_url(option.url)
+            self.result.needs_quality_selection = len(quality_options) > 0
+
         self.result.quality_options = quality_options
-        self.result.needs_quality_selection = len(quality_options) > 0
 
         # 5) 下载/缓存预览视频（仅在视频足够小的情况下）
         if preview_option and preview_option.size_mb < 50:

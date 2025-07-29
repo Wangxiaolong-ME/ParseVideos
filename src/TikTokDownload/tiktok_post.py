@@ -270,6 +270,15 @@ class TikTokPostManager:
         else:
             raise ValueError(f"未知 strategy: {strategy}")
 
+
+    def _get_real_download_url(self, url):
+        headers = {"Referer": url}
+        log.debug("跟踪重定向URL中")
+        final_url = self.m_download._get_final_url(url, headers, 20, use_get=True)
+        if final_url:
+            return final_url
+        return url
+
     # --- 核心下载方法 (Core Download Methods) ---
     async def _downloader(self, url, output_path, timeout=60):
         headers = {"Referer": url}

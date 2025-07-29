@@ -64,8 +64,10 @@ class DouyinParser(BaseParser):
 
     async def _parse_audio(self, post):
         if post.audio:
+            logger.info("成功获取音频链接")
             self.result.audio_uri = post.audio.url
             self.result.audio_title = post.audio.title
+        logger.warning("未获取到音频链接")
 
     async def _parse_video(self, post: DouyinPost) -> ParseResult:
         """解析视频并提供多分辨率选项"""
@@ -113,10 +115,10 @@ class DouyinParser(BaseParser):
         if not preview_option:
             quality_options = post.deduplicate_with_limit(quality_options)
             preview_option = quality_options[0]
-        else:
-            quality_options = post.deduplicate_with_limit(quality_options)
+        else:   # 正常获取到
             quality_options.insert(0, preview_option)  # 作为首个展示用
-            preview_option.is_default = True
+            quality_options = post.deduplicate_with_limit(quality_options)
+            quality_options[0].is_default = True
 
         self.result.quality_options = quality_options
         self.result.needs_quality_selection = len(quality_options) > 0

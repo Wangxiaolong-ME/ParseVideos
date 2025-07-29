@@ -57,7 +57,7 @@ DOUYIN_OVER_SIZE = "⚠️注意：视频体积超50M无法上传, 请选择下�
 # —————————— 抖音配置 ——————————
 
 # —————————— TikTok配置 ——————————
-
+TIKTOK_NEEDS_QUALITY_SELECTION_SWITCH = False   # 是否走分辨率选项规则发送,目前不走,因为CDN下载直链有有效期,发了也没用打开看不了
 TIKTOK_DOWNLOAD_TIMEOUT = 20  # 多线程下载超时 时间
 TIKTOK_SAVE_DIR = BASE_DIR / "tiktok_downloads"
 # 超时 设置

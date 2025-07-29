@@ -182,9 +182,7 @@ async def generic_command_handler(
         rm: InlineKeyboardMarkup | None = None
 
         # 处理需要质量选择的情况 (抖音多分辨率)
-        # 增加额外检查：只要有quality_options就显示按钮
-        if (parse_result.needs_quality_selection and parse_result.quality_options) or \
-                (parse_result.quality_options and len(parse_result.quality_options) > 0):
+        if parse_result.needs_quality_selection and parse_result.quality_options:
             logger.info(f"处理抖音多分辨率选择")
             logger.info(f"预览链接: {parse_result.preview_url}")
             logger.info(f"质量选项数量: {len(parse_result.quality_options)}")
@@ -376,6 +374,43 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
                     )
                 except Exception as e:
                     raise Exception(f"发送大视频文档失败: {e}")
+
+            if record.platform == 'tiktok':
+                await progress_msg.edit_text("视频下载完成，正在上传 TikTok 视频...")
+                try:
+                    _handle_special_field(result)  # 如有标题处理
+
+                    # 1) 上传本地视频
+                    sent_msg = await sender.send_video(
+                        video=item.local_path,
+                        caption=result.title or "TikTok 视频",
+                        duration=item.duration,
+                        width=item.width,
+                        height=item.height,
+                        progress_msg=progress_msg,
+                        reply_markup=None,  # 先发裸消息，稍后再编辑加按钮
+                    )
+
+                    # 2) 组装按钮
+                    buttons = []
+
+                    # 音频下载按钮
+                    if getattr(result, "audio_uri", None):
+                        audio_btn = InlineKeyboardButton(
+                            text=f"🎵 MUSIC ({result.audio_title or 'Audio'})",
+                            url=result.audio_uri,
+                        )
+                        buttons.append([audio_btn])  # 新起一行
+
+                    if buttons:
+                        markup = InlineKeyboardMarkup(buttons)
+                        # 3) 把按钮编辑到刚刚发出的消息上
+                        await sent_msg.edit_reply_markup(reply_markup=markup)
+
+                    return sent_msg
+
+                except Exception as e:
+                    raise Exception(f"发送 TikTok 视频时发生未知错误: {e}")
             await progress_msg.edit_text("视频下载完成，正在上传...")
             try:
                 _handle_special_field(result)
@@ -523,13 +558,14 @@ async def _send_quality_selection(sender: MsgSender, result: ParseResult, progre
     if result.audio_uri:
         text = f"🎵 MUSIC ({result.audio_title})"
         audio_btn = InlineKeyboardButton(text=text, url=result.audio_uri)
+        keyboard.append([audio_btn])
 
-        # 如果最后一行不足 2 个，就直接 append 到最后一行
-        if keyboard and len(keyboard[-1]) < 2:
-            keyboard[-1].append(audio_btn)
-        else:
-            # 否则新起一行，只放音频按钮
-            keyboard.append([audio_btn])
+        # # 如果最后一行不足 2 个，就直接 append 到最后一行
+        # if keyboard and len(keyboard[-1]) < 2:
+        #     keyboard[-1].append(audio_btn)
+        # else:
+        #     # 否则新起一行，只放音频按钮
+        #     keyboard.append([audio_btn])
     logger.debug(f"共创建 {len(keyboard)} 行按钮")
 
     # URL按钮不需要取消按钮
