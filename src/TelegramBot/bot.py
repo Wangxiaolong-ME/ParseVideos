@@ -3,7 +3,7 @@ from PublicMethods.logger import setup_log, get_logger
 
 setup_log(logging.DEBUG, "TelegramService", one_file=True)
 logger = get_logger(__name__)
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, CallbackQueryHandler
 from TelegramBot.config import TELEGRAM_TOKEN_ENV, ADMIN_ID, MIN_MSG_INTERVAL
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.task_manager import TaskManager
@@ -59,7 +59,9 @@ def main() -> None:
     application.add_handler(CommandHandler("blacklist_remove", blacklist.handle_blacklist_remove_command))
     application.add_handler(CommandHandler("blacklist_show", blacklist.handle_blacklist_show_command))
 
-    application.add_handler(CommandHandler("notify", notify.handle_notify_command))
+    application.add_handler(CommandHandler("notify", notify.notify_cmd))
+    application.add_handler(CallbackQueryHandler(notify.notify_cb, pattern=r"^notify:"))
+
     application.add_handler(CommandHandler("status", status.handle_status_command))
 
     # 暂时以下这些命令未开放使用,先放着看后续是否有需求

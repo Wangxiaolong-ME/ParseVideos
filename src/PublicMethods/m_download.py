@@ -414,7 +414,10 @@ class Downloader:
         # 1. 探测最终 URL 与文件大小
         try:
             final_url = self._get_final_url(url, headers, timeout, max_redirects)
+            logger.debug(f"获取final_url :{final_url}")
+            logger.debug(f"发起HEAD请求内容长度")
             resp_head = self.default_session.head(final_url, headers=headers, timeout=timeout)
+            logger.debug(f"HEAD请求完成")
             resp_head.raise_for_status()  # 确保 HEAD 请求成功
             total_size = int(resp_head.headers.get('Content-Length', 0))
             # logger.info(f"文件最终URL: {final_url}, 文件总大小: {Downloader._sizeof_fmt_static(total_size)}")
