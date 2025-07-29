@@ -1,9 +1,7 @@
 # tiktok_post.py
-import json
 import os
-import re
 from datetime import datetime
-from typing import List, Optional, Any, Coroutine
+from typing import List, Optional
 
 import httpx
 import logging

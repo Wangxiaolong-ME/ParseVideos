@@ -1,18 +1,13 @@
 # TelegramBot/handlers/generic_handler.py
-import asyncio
-import functools
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List, Union
 
-from prompt_toolkit.input.win32 import attach_win32_input
 from telegram import Update, Message, InputMediaPhoto, InputMediaVideo, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.constants import ParseMode
-from telegram.error import BadRequest
 from telegram.ext import ContextTypes
-from telegram.helpers import escape_markdown
 
 from TelegramBot.cleaner import purge_old_files
 from TelegramBot.config import EXCEPTION_MSG, MAX_THREAD_WORKERS, BILI_PREVIEW_VIDEO_TITLE, ADMIN_ID, USAGE_TEXT, \

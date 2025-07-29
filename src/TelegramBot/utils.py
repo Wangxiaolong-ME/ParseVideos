@@ -3,8 +3,7 @@ import asyncio
 import time
 from pathlib import Path
 from typing import Union, IO, List, Optional, Any, Coroutine
-from telegram import InputFile, Message, Update, ReactionTypeEmoji, ReactionTypeCustomEmoji, InputMediaVideo, \
-    InputMediaPhoto
+from telegram import InputFile, Message, Update, ReactionTypeEmoji, ReactionTypeCustomEmoji, InputMediaPhoto
 from telegram.constants import ChatAction, ParseMode
 
 import logging
