@@ -303,7 +303,7 @@ class Downloader:
         current_url = url
         visited_urls = {url}  # 记录已访问的 URL，防止重定向循环
 
-        # logger.debug(f"开始跟踪重定向。初始URL: {current_url}")
+        logger.debug(f"开始跟踪重定向。初始URL: {current_url}")
         start_time = time.perf_counter()  # 记录开始时间
 
         for i in range(max_redirects):
@@ -387,7 +387,7 @@ class Downloader:
             path (str): 输出文件路径（不包含 .part 后缀）。
             headers (Dict[str, str], optional): HTTP 请求头。
             timeout (int): 下载总超时时间（秒）。
-            max_redirects (int): 跟踪重定向的最大次数。
+            max_redirects (int): 跟踪重定向的最大次数。为0直接下载,不重定向寻找URL
             multi_session (bool): 是否为每个并发下载线程使用独立的 requests.Session。
                                   如果为 True，且 session_pool_size 为 None，则每个线程创建新 Session。
                                   如果为 True，且 session_pool_size 非 None，则从池中复用 Session。
@@ -413,6 +413,7 @@ class Downloader:
 
         # 1. 探测最终 URL 与文件大小
         try:
+            logger.debug(f"开始获取final_url")
             final_url = self._get_final_url(url, headers, timeout, max_redirects)
             logger.debug(f"获取final_url :{final_url}")
             logger.debug(f"发起HEAD请求内容长度")

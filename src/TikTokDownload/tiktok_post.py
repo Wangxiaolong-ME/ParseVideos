@@ -272,9 +272,13 @@ class TikTokPostManager:
 
     # --- 核心下载方法 (Core Download Methods) ---
     async def _downloader(self, url, output_path, timeout=60):
+        headers = {"Referer": url}
         for i in range(0, 3):
             try:
-                out = self.m_download.download(url, output_path, self.headers, timeout=timeout)
+                log.debug("跟踪重定向URL中")
+                final_url = self.m_download._get_final_url(url ,headers,timeout, use_get=True)
+                log.debug("重定向URL跟踪完成")
+                out = self.m_download.download(final_url, output_path, headers, timeout=timeout, max_redirects=0)
                 if not out:
                     raise "下载视频发生错误"
                 log.debug(f"下载完成,保存路径: {output_path}")
