@@ -1,4 +1,6 @@
 import re
+import time
+
 from telegram import Update, ReplyKeyboardRemove
 from telegram.ext import ContextTypes
 from TelegramBot.handlers import bilibili, douyin, music, xiaohongshu, unknow, tiktok
@@ -19,9 +21,10 @@ async def handle_general_url(update: Update, context: ContextTypes.DEFAULT_TYPE)
     platform = ""
     r = True
     m = ''
+    start = time.time()
     if m := re.search(r'(bilibili\.com|b23\.tv\/)', text):
         try:
-            platform = 'bilibili video'
+            platform = 'bilibili'
             r = await bilibili.bilibili_command(update, context, is_command=False)
         except Exception as e:
             logger.error(f"bilibili_command 失败: {e}")
@@ -29,7 +32,7 @@ async def handle_general_url(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     elif m := re.search(r'v\.douyin\.com', text):
         try:
-            platform = 'douyin video'
+            platform = 'douyin'
             r = await douyin.douyin_command(update, context, is_command=False)
         except Exception as e:
             logger.error(f"douyin_command 失败: {e}")
@@ -60,7 +63,9 @@ async def handle_general_url(update: Update, context: ContextTypes.DEFAULT_TYPE)
     else:
         try:
             platform = "unknow"
-            r = await unknow.unknow_command(update, context, is_command=False)
+            if m := re.search(r"(?<=//)[\w\S]+?(?=/)", text):
+                platform = m.group()
+            r = await unknow.unknow_command(update, context, platform=platform, is_command=False)
         except Exception as e:
             logger.error(f"unknow_command 失败: {e}")
             await update.effective_message.reply_text(EXCEPTION_MSG, quote=True)
@@ -70,17 +75,19 @@ async def handle_general_url(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # 解析简报发送给管理员
     if update.effective_user.id != ADMIN_ID:
+        full_time = time.time() - start
         uid = update.effective_user.id
         # uname = update.effective_user.name or ""
         full_name = update.effective_user.full_name
         input_text = text
-        result = 'Failed❌'
+        result = '❌'
         if r:
-            result = 'Success✅'
+            result = '✅'
         # if m:
         #     input_text = m.group()
         await update.get_bot().send_message(ADMIN_ID,
-                                            f"UID:  {uid} | 用户名:  {full_name}\nparsed {platform} {result}\n\n{input_text}",
+                                            f"{result}UID: {uid} | 用户名: {full_name} | 平台: {platform} | 耗时: {full_time:.1f}s"
+                                            f"\n\n{input_text}",
                                             disable_web_page_preview=True)
 
     # else:

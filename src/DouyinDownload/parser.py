@@ -250,6 +250,7 @@ class DouyinParser:
                 log.debug("音频链接获取成功")
             else:
                 log.warning("音频链接获取失败,为空")
+                log.warning(f"music实例数据:{music}")
             self.audio = music_option
 
     def _parse_video_options(self, detail_json: Dict[str, Any]) -> List[VideoOption]:

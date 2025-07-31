@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 async def unknow_command(
         update: Update,
         context: ContextTypes.DEFAULT_TYPE,
+        platform="unknow",
         *,
         is_command: bool = True,
 ):
@@ -25,7 +26,7 @@ async def unknow_command(
         update=update,
         context=context,
         parser_class=None,
-        platform_name="unknow",
+        platform_name=platform,
         save_dir=None,
         is_command=is_command,
     )
