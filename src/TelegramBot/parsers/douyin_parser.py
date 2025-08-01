@@ -3,12 +3,11 @@ import logging
 from pathlib import Path
 from typing import Any, Coroutine
 
-from telegram.helpers import escape_markdown
 
 from DouyinDownload.douyin_post import DouyinPost
 from DouyinDownload.douyin_image_post import DouyinImagePost
-from TelegramBot.config import DOWNLOAD_TIMEOUT, PREVIEW_SIZE, DOUYIN_FETCH_IMAGE_TIMEOUT, DOUYIN_FETCH_VIDEO_TIMEOUT, \
-    EXCLUDE_RESOLUTION
+from TelegramBot.config import DOWNLOAD_TIMEOUT, PREVIEW_SIZE, EXCLUDE_RESOLUTION, DOUYIN_PARSE_IMAGE_TIMEOUT, \
+    DOUYIN_PARSE_VIDEO_TIMEOUT
 from .base import BaseParser, ParseResult, VideoQualityOption
 from PublicMethods.functool_timeout import retry_on_timeout_async
 
@@ -40,7 +39,6 @@ class DouyinParser(BaseParser):
             await self._parse_audio(self.post)
         return vid, title
 
-    @retry_on_timeout_async(60, 2)
     async def parse(self) -> Coroutine[Any, Any, ParseResult] | Any:
         """
         实现抖音视频/图集的解析和下载逻辑。
@@ -69,6 +67,7 @@ class DouyinParser(BaseParser):
             self.result.audio_title = post.audio.title
         logger.warning("未获取到音频链接")
 
+    @retry_on_timeout_async(*DOUYIN_PARSE_VIDEO_TIMEOUT)
     async def _parse_video(self, post: DouyinPost) -> ParseResult:
         """解析视频并提供多分辨率选项"""
         # 获取所有可用的视频选项
@@ -115,7 +114,7 @@ class DouyinParser(BaseParser):
         if not preview_option:
             quality_options = post.deduplicate_with_limit(quality_options)
             preview_option = quality_options[0]
-        else:   # 正常获取到
+        else:  # 正常获取到
             quality_options.insert(0, preview_option)  # 作为首个展示用
             quality_options = post.deduplicate_with_limit(quality_options)
             quality_options[0].is_default = True
@@ -161,6 +160,7 @@ class DouyinParser(BaseParser):
         self.result.success = True
         return self.result
 
+    @retry_on_timeout_async(*DOUYIN_PARSE_IMAGE_TIMEOUT)
     async def _parse_image_gallery(self, image_post: DouyinImagePost) -> ParseResult:
         self.result.vid = image_post.aweme_id
         self.result.title = image_post.title

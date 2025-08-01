@@ -6,6 +6,7 @@ Defines the core business class, DouyinPost, which encapsulates all operations f
 import json
 import os
 import re
+import time
 from datetime import datetime
 from typing import List, Optional, Union
 
@@ -465,8 +466,16 @@ class DouyinPost:
         log.debug(f"  预计大小: {option.size_mb or '未知'} MB")
 
         start = datetime.now()
-        self.downloader.download(option.url, out_path, timeout=timeout, multi_session=True,
-                                 session_pool_size=DOUYIN_SESSION_COUNTS)
+        for i in range(0, 4):
+            if i == 2:
+                time.sleep(5)
+            try:
+                self.downloader.download(option.url, out_path, timeout=timeout, multi_session=True,
+                                         session_pool_size=DOUYIN_SESSION_COUNTS)
+                break
+            except Exception as e:
+                log.error(f"{i+1} - 下载失败,继续重试. 异常信息:{e}")
+                continue
         cost = (datetime.now() - start).total_seconds()
 
         size_mb = os.path.getsize(out_path) / (1024 * 1024)
