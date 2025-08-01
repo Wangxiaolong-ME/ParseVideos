@@ -86,7 +86,8 @@ async def handle_general_url(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # if m:
         #     input_text = m.group()
         await update.get_bot().send_message(ADMIN_ID,
-                                            f"{result}UID: {uid} | 用户名: {full_name} | 平台: {platform} | 耗时: {full_time:.1f}s"
+                                            f"{result}UID: {uid} | 用户名: {full_name}"
+                                            f"\n平台: {platform} | 耗时: {full_time:.1f}s"
                                             f"\n\n{input_text}",
                                             disable_web_page_preview=True)
 
