@@ -673,10 +673,11 @@ async def ai_summary(sender, result, msg, parser_instance):
 
             if ai_msg:
                 await ai_msg.edit_text(summary)
+            else:
+                await ai_msg.edit_text('未识别到视频内容')
+                await asyncio.sleep(3)
+                await ai_msg.delete()
+
         except Exception as e:
             await ai_msg.delete()
             logger.error(f"AI分析时异常:{e}")
-        else:
-            await ai_msg.edit_text('未识别到视频内容')
-            await asyncio.sleep(3)
-            await ai_msg.delete()
