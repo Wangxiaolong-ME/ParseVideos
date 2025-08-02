@@ -35,6 +35,7 @@ class GeminiClient:
 
     def _init_api_key(self):
         api_keys_str = os.getenv("GEMINI_API_KEYS")
+        log.debug(f"gemini_keys:{api_keys_str}")
         if not api_keys_str:
             return
         try:
