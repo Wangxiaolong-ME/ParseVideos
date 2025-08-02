@@ -65,7 +65,9 @@ class ParseResult:
     text_message: str | None = None  # 如果需要直接发送文本消息（例如 >50MB 的链接）
     bili_preview_video: bool | None = None  # B站私人视频或会员视频
     download_url_list: List[str] = field(default_factory=list)   # 多个下载链接列表
-    
+    # AI 总结用的内容
+    ocr_content: str | None = ""
+
     # ---- 多分辨率选择字段 ----
     quality_options: List[VideoQualityOption] = field(default_factory=list)  # 视频质量选项列表
     needs_quality_selection: bool = False  # 是否需要用户选择分辨率
@@ -105,6 +107,12 @@ class BaseParser(ABC):
     async def peek(self) -> tuple[str, str]:
         """
          只返回 (vid, title)，不做下载。
+        """
+        raise NotImplementedError
+
+    async def _ai_summary(self) -> str:
+        """
+        返回AI总结内容
         """
         raise NotImplementedError
 

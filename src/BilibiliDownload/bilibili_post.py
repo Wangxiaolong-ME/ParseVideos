@@ -36,6 +36,7 @@ class BilibiliPost:
         self.parser = BilibiliParser(url, headers=self.headers, cookie=cookie)
         self.downloader = Downloader(session=self.parser.session, threads=threads)
         self.preview_video = None
+        self.ocr_content = ''
 
         # ensure dirs
         os.makedirs(self.save_dir, exist_ok=True)
@@ -61,6 +62,7 @@ class BilibiliPost:
             self.selected_audio = self.audio_options[-1] if self.audio_options else None
             self.size_mb = self.selected_video['size_mb'] + self.selected_audio['size_mb']
             self.duration = self.selected_video['duration'] or 0
+            self.ocr_content = self.parser.ocr_content
         except Exception as e:
             raise BilibiliParseError(e)
         return self

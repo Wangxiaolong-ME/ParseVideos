@@ -17,8 +17,9 @@ from cryptography.hazmat.primitives.keywrap import aes_key_wrap
 from telegram.helpers import escape_markdown
 
 from BilibiliDownload.bilibili_post import BilibiliPost
+from PublicMethods.gemini import gemini
 from PublicMethods.tools import check_file_size
-from TelegramBot.config import BILI_SAVE_DIR, BILI_COOKIE
+from TelegramBot.config import BILI_SAVE_DIR, BILI_COOKIE, PROMPT_WORD
 from .base import BaseParser, ParseResult
 from PublicMethods.functool_timeout import retry_on_timeout
 from TelegramBot.uploader import upload
@@ -44,6 +45,8 @@ class BilibiliParser(BaseParser):
         self.post = BilibiliPost(self.url, threads=8, cookie=BILI_COOKIE).fetch()
         vid = self.post.bvid
         title = self.post.title or self.post.bvid
+        if self.post.ocr_content:
+            self.result.ocr_content = self.post.ocr_content
         return vid, title
     # ────────────────────────────────────────────────────────────────
     # public API
@@ -67,6 +70,22 @@ class BilibiliParser(BaseParser):
             self.result.error_message = f"解析 Bilibili 链接时出错: {e}"
             self.result.success = False
             return self.result
+
+    async def _ai_summary(self) -> str:
+        if not self.post.ocr_content:
+            return ''
+        try:
+            gemini.reset()
+            gemini.add_text(f"{PROMPT_WORD}\n内容:{self.post.ocr_content}")
+            r = gemini.generate()
+            if r:
+                if r:
+                    return r.text
+                    # self.result.ai_summary = r.text
+            raise
+        except Exception as e:
+            logger.error(f"AI-Gemini总结异常,{e}")
+            return ''
 
     # ────────────────────────────────────────────────────────────────
     # internal helpers

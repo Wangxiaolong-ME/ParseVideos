@@ -11,7 +11,8 @@ from bs4 import BeautifulSoup
 from BilibiliDownload.exceptions import BilibiliParseError
 from PublicMethods.m_download import Downloader
 from PublicMethods.tools import prepared_to_curl
-import  logging
+import logging
+
 log = logging.getLogger(__name__)
 
 
@@ -28,6 +29,7 @@ class BilibiliParser:
         self.video_options = []  # 列表项: {'quality': int, 'description': str, 'url': str}
         self.audio_options = []  # 列表项: {'quality': int, 'url': str}
         self.preview_video_url = None  # 如果视频是预览视频，后续直通车，下载上传，无需其余逻辑判断
+        self.ocr_content = ''
 
     def _parse_url(self):
         """
@@ -144,11 +146,38 @@ class BilibiliParser:
             if 'videoData' in initstate and 'title' in initstate['videoData']:
                 self.title = initstate['videoData']['title']
                 self.bvid = initstate.get('bvid')
+            # 字幕信息,用于AI总结
+            aid = initstate.get('aid')
+            cid = initstate.get('cid')
+            url = 'https://api.bilibili.com/x/player/wbi/v2'
+            params = f"?aid={aid}&cid={cid}"
+            url += params
+            try:
+                if aid and cid:
+                    r = self.session.get(url, headers=self.headers, cookies=self.cookie, timeout=10)
+                    if r.status_code == 200:
+                        try:
+                            text = r.json()
+                        except Exception as e:
+                            log.error(f"字幕信息获取异常:{e}")
+                            text = {}
+                        if text:
+                            subtitles = text.get('data', {}).get('subtitle', {}).get('subtitles', [])
+                            if subtitles:
+                                ocr_url = subtitles[0].get('subtitle_url', '')
+                                ocr_content_json = self.session.get(f"https:{ocr_url}", headers=self.headers, timeout=10)
+                                if ocr_content_json.status_code == 200:
+                                    all_content = re.finditer(r'(?<=content":\s").*(?=")', str(ocr_content_json.text),
+                                                              re.MULTILINE)
+                                    self.ocr_content = "\n".join(match.group(0) for match in all_content)
+                                    log.debug(f"ocr_content:{self.ocr_content.replace('\n', ', ')}")
+            except Exception as e:
+                log.error(f"未提取到ocr_content信息,{e}")
 
             video_info = playinfo.get('data')
             dash = video_info.get('dash')
             if not dash:
-                durl = video_info.get('durl')   # 此标识为会员或私人视频
+                durl = video_info.get('durl')  # 此标识为会员或私人视频
                 self.preview_video_url = durl[0].get('url', '')
                 return
             _parse(dash, video_info)

@@ -63,6 +63,7 @@ class TikTokVideoOption:
     height: int = 0
     width: int = 0
     duration: int = 0  # 视频文件本身的持续时间，可能与作品总时长略有不同
+    ocr_content: str = ''
 
     def to_dict(self) -> Dict[str, Any]:
         """将数据类实例转换为字典。"""

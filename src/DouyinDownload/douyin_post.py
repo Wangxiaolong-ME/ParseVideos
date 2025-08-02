@@ -77,6 +77,7 @@ class DouyinPost:
         self.processed_video_title = None
         self.raw_video_options = []
         self.processed_video_options = []
+        self.ocr_content = ''
 
         self.content_type = 'video'
         self.gear_name = None  # 视频去重后才会生成
@@ -96,12 +97,13 @@ class DouyinPost:
             # 保留原始标题，并创建一个处理后的标题用于文件命名
             self.processed_video_title = re.sub(r'[#].*?(\s|$)', '', self.video_title.replace('\n', ' ')).strip()
             self.video_id = self.raw_video_options[0].aweme_id
+            self.ocr_content = self.raw_video_options[0].ocr_content
+
             # 初始状态下，处理后的列表等于原始列表
             self.processed_video_options = self.raw_video_options.copy()
             log.info(f"标题:{self.video_title}")
             log.info(f"vid:{self.video_id}")
             log.info(f"解析到 {len(self.raw_video_options)} 条视频流")
-
             self.audio = self.parser.audio  # 音频
 
             # 默认按分辨率降序排序

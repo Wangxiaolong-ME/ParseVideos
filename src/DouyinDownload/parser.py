@@ -96,6 +96,7 @@ class DouyinParser:
                             """
                             final_text = re.sub(r'"(\[(?:"[^"]+"(?:,"[^"]+")*|\d+)\])"', r'\1', final_text)
                             final_text = final_text.replace('$undefined', 'null')
+                            final_text = re.sub(r'("\w+")\s*:\s*"([^|"]+)\|"([^"]+)"\|"',r'\1:"\2|\3|"', final_text)
                             try:
                                 target_dict = self._try_parse_json(final_text)
                                 return target_dict
@@ -262,6 +263,9 @@ class DouyinParser:
         if not aweme_detail:
             raise ParseError("API响应中缺少 'aweme_detail' 关键字段 (Missing 'aweme_detail' key in API response).")
 
+        # ocr_content, 识别视频字幕内容,后续可AI分析精炼
+        ocr_content = aweme_detail.get("seo_info", {}).get("ocr_content", "")
+
         aweme_id = aweme_detail.get("aweme_id")
         bit_rate_list = aweme_detail.get("video", {}).get("bit_rate", [])
         # log.debug(f"DouYin_aweme_detail 视频流: {bit_rate_list}")
@@ -305,6 +309,7 @@ class DouyinParser:
                     height=item.get("play_addr").get("height", 720),
                     width=item.get("play_addr").get("width", 1280),
                     duration=duration,
+                    ocr_content=ocr_content,
                 )
             )
 

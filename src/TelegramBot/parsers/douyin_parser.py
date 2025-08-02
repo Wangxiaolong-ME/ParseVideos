@@ -3,11 +3,11 @@ import logging
 from pathlib import Path
 from typing import Any, Coroutine
 
-
 from DouyinDownload.douyin_post import DouyinPost
 from DouyinDownload.douyin_image_post import DouyinImagePost
+from PublicMethods.gemini import gemini
 from TelegramBot.config import DOWNLOAD_TIMEOUT, PREVIEW_SIZE, EXCLUDE_RESOLUTION, DOUYIN_PARSE_IMAGE_TIMEOUT, \
-    DOUYIN_PARSE_VIDEO_TIMEOUT
+    DOUYIN_PARSE_VIDEO_TIMEOUT, PROMPT_WORD
 from .base import BaseParser, ParseResult, VideoQualityOption
 from PublicMethods.functool_timeout import retry_on_timeout_async
 
@@ -37,6 +37,9 @@ class DouyinParser(BaseParser):
             vid = self.post.video_id
             title = self.post.video_title or self.post.video_id
             await self._parse_audio(self.post)
+        if self.post.ocr_content:
+            self.result.ocr_content = self.post.ocr_content
+        # await self._ai_summary(self.post.ocr_content)  # AI 总结
         return vid, title
 
     async def parse(self) -> Coroutine[Any, Any, ParseResult] | Any:
@@ -66,6 +69,22 @@ class DouyinParser(BaseParser):
             self.result.audio_uri = post.audio.url
             self.result.audio_title = post.audio.title
         logger.warning("未获取到音频链接")
+
+    async def _ai_summary(self) -> str:
+        if not self.post.ocr_content:
+            return ''
+        try:
+            gemini.reset()
+            gemini.add_text(f"{PROMPT_WORD}\n内容:{self.post.ocr_content}")
+            r = gemini.generate()
+            if r:
+                if r:
+                    return r.text
+                    # self.result.ai_summary = r.text
+            raise
+        except Exception as e:
+            logger.error(f"AI-Gemini总结异常,{e}")
+            return ''
 
     @retry_on_timeout_async(*DOUYIN_PARSE_VIDEO_TIMEOUT)
     async def _parse_video(self, post: DouyinPost) -> ParseResult:

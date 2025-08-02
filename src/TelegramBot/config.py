@@ -39,6 +39,7 @@ IMAGES_CACHE_SWITCH = False     # 图集走缓存策略开关
 PREVIEW_SIZE = 20  # 预览视频大小优先选取
 # EXCLUDE_RESOLUTION = [1440, 2160]   # 上传排除的分辨率
 EXCLUDE_RESOLUTION = None   # 上传排除的分辨率
+PROMPT_WORD = "总结内容,罗列清晰,不要回复其余无关话术,内容不要有markdown格式,纯文本;总结包括大三要素:核心摘要,关键论点,结论."
 # —————————— 通用配置 ——————————
 
 

@@ -1,4 +1,5 @@
 # TelegramBot/handlers/generic_handler.py
+import asyncio
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -188,11 +189,11 @@ async def generic_command_handler(
             logger.info(f"质量选项数量: {len(parse_result.quality_options)}")
 
             # 直接显示分辨率选择按钮（标题包含预览链接）
-            msg, rm = await _send_quality_selection(sender, parse_result, progress_msg, record)
+            msg, rm = await _send_quality_selection(sender, parse_result, progress_msg, record, parser_instance)
         else:
             # ---- 5. 上传文件并缓存 file_id ----
             logger.info(f"_upload_and_send 上传文件并缓存 file_id")
-            msg = await _upload_and_send(sender, parse_result, progress_msg, record)
+            msg = await _upload_and_send(sender, parse_result, progress_msg, record, parser_instance)
 
         # 缓存新的 file_id
         if msg and parse_result.vid:
@@ -296,7 +297,7 @@ async def _send_by_file_id(sender: MsgSender, file_id: str or list, caption: str
     """使用缓存的file_id发送 (此处可以扩展支持不同类型)"""
 
     # 如果value是链接,直接复制文本框内容发送,这种是上传三方平台用于预览下载视频的
-    if special =="catbox" or 'catbox' in file_id:
+    if special == "catbox" or 'catbox' in file_id:
         return await sender.send(
             text=caption,
             parse_mode=parse_mode,
@@ -345,7 +346,7 @@ def _handle_special_field(result: ParseResult):
         result.title = f"{result.title}\n{BILI_PREVIEW_VIDEO_TITLE}"
 
 
-async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg: Message, record):
+async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg: Message, record, parser_instance):
     """根据内容类型上传并发送文件"""
     content_type = result.content_type
 
@@ -407,6 +408,8 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
                         # 3) 把按钮编辑到刚刚发出的消息上
                         await sent_msg.edit_reply_markup(reply_markup=markup)
 
+                    await ai_summary(sender, result, sent_msg, parser_instance)
+
                     return sent_msg
 
                 except Exception as e:
@@ -414,7 +417,7 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
             await progress_msg.edit_text("视频下载完成，正在上传...")
             try:
                 _handle_special_field(result)
-                return await sender.send_video(
+                msg = await sender.send_video(
                     video=item.local_path,
                     caption=result.title,
                     duration=item.duration,
@@ -422,6 +425,8 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
                     height=item.height,
                     progress_msg=progress_msg,  # 传递progress_msg让send_video处理
                 )
+                await ai_summary(sender, result, msg, parser_instance)
+                return msg
             except Exception as e:
                 raise Exception(f"发送视频时发生未知错误: {e}")
         else:  # audio
@@ -457,7 +462,8 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
                     caption_text = f"{base_caption}\n\n{music_link}" if base_caption else music_link
                 else:
                     caption_text = base_caption
-
+                if caption_text:
+                    caption_text += f"\n\n{LESS_FLAG}"
                 result.html_title = caption_text
                 # 【核心逻辑】根据 media_items 中的 file_type 判断是创建视频还是图片对象
                 if item.file_type == 'video':
@@ -516,7 +522,7 @@ async def _upload_and_send(sender: MsgSender, result: ParseResult, progress_msg:
 
 
 async def _send_quality_selection(sender: MsgSender, result: ParseResult, progress_msg: Message,
-                                  record: UserParseResult):
+                                  record: UserParseResult, parser_instance: BaseParser):
     """发送分辨率选择按钮"""
     if not result.quality_options:
         await sender.send("没有可用的分辨率选项")
@@ -597,7 +603,8 @@ async def _send_quality_selection(sender: MsgSender, result: ParseResult, progre
         # Fallback to simple message without HTML formatting
         message_text = f"视频标题: {result.title or 'Unknown'}"
         message_text += f"\n共找到 {len(result.quality_options)} 个分辨率选项"
-
+    # if result.ai_summary:
+    #     message_text += f"\n\nAI视频总结:\n{result.ai_summary}"
     # 不再需要存储质量选项，因为使用URL按钮直接跳转
     try:
         if result.size_mb > 50:
@@ -615,6 +622,21 @@ async def _send_quality_selection(sender: MsgSender, result: ParseResult, progre
         )
         logger.debug("Quality selection message sent successfully")
         result.success = True
+        # AI 总结
+        await ai_summary(sender, result, msg, parser_instance)
+        # ai_msg = None
+        # if result.ocr_content:
+        #     ai_msg = await sender.send("AI正在对视频内容分析总结...", reply_to_message_id=msg.message_id)
+        #     summary = await parser_instance._ai_summary()
+        #     if summary:
+        #         summary = f"AI总结:\n{summary}"
+        #     if ai_msg:
+        #         await ai_msg.edit_text(summary)
+        #     else:
+        #         await ai_msg.edit_text('未识别到视频内容')
+        #         await asyncio.sleep(3)
+        #         await ai_msg.delete()
+
         result.html_title = message_text
         return msg, reply_markup
     except Exception as e:
@@ -632,7 +654,29 @@ async def _send_quality_selection(sender: MsgSender, result: ParseResult, progre
                 reply=False
             )
             logger.warning("Sent fallback quality selection message")
+            await ai_summary(sender, result, msg, parser_instance)
             result.html_title = message_text
             return msg, reply_markup
         except Exception as e:
             logger.error(f"兜底发送, 保留失败标识,避免原消息被删除{e}")
+
+
+async def ai_summary(sender, result, msg, parser_instance):
+    # AI 总结
+    ai_msg = None
+    if result.ocr_content:
+        ai_msg = await sender.send("AI正在对视频内容分析总结...", reply_to_message_id=msg.message_id)
+        try:
+            summary = await parser_instance._ai_summary()
+            if summary:
+                summary = f"AI总结:\n{summary}"
+
+            if ai_msg:
+                await ai_msg.edit_text(summary)
+        except Exception as e:
+            await ai_msg.delete()
+            logger.error(f"AI分析时异常:{e}")
+        else:
+            await ai_msg.edit_text('未识别到视频内容')
+            await asyncio.sleep(3)
+            await ai_msg.delete()

@@ -31,6 +31,7 @@ class VideoOption:
     height: int
     width: int
     duration: int | float
+    ocr_content: str
 
     def __repr__(self) -> str:
         size_str = f"{self.size_mb:.2f} MB" if self.size_mb is not None else "Unknown Size"
