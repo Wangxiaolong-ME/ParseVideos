@@ -170,7 +170,8 @@ class BilibiliParser:
                                     all_content = re.finditer(r'(?<=content":\s").*(?=")', str(ocr_content_json.text),
                                                               re.MULTILINE)
                                     self.ocr_content = "\n".join(match.group(0) for match in all_content)
-                                    log.debug(f"ocr_content:{self.ocr_content.replace('\n', ', ')}")
+                                    content = self.ocr_content.replace('\n', ', ')
+                                    log.debug(f"ocr_content:{content}")
             except Exception as e:
                 log.error(f"未提取到ocr_content信息,{e}")
 
