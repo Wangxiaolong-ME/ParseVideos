@@ -32,6 +32,7 @@ LESS_FLAG = "Downloaded via:\n@IntelligentAxlxlbot"
 # —————————— TelegramBot配置 ——————————
 
 # —————————— 通用配置 ——————————
+ENABLE_CACHE = False    # 是否开启缓存机制,历史解析过的会被记录在缓存当中,命中会直接从缓存拉取发送
 MAX_THREAD_WORKERS = 5  # download 线程池大小
 EXCEPTION_MSG = "解析失败,请检查链接或作品为私密状态."
 EXCEPTION_MSG_TO_LOG = ""

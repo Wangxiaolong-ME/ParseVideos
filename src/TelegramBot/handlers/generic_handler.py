@@ -12,7 +12,7 @@ from telegram.ext import ContextTypes
 
 from TelegramBot.cleaner import purge_old_files
 from TelegramBot.config import EXCEPTION_MSG, MAX_THREAD_WORKERS, BILI_PREVIEW_VIDEO_TITLE, ADMIN_ID, USAGE_TEXT, \
-    DOUYIN_OVER_SIZE, IMAGES_CACHE_SWITCH, LESS_FLAG
+    DOUYIN_OVER_SIZE, IMAGES_CACHE_SWITCH, LESS_FLAG, ENABLE_CACHE
 from TelegramBot.task_manager import TaskManager
 from TelegramBot.rate_limiter import RateLimiter
 from TelegramBot.utils import MsgSender
@@ -111,37 +111,38 @@ async def generic_command_handler(
             # 如果 peek 本身也出问题，继续走 parse 分支
             vid, title = None, None
 
-        # 检查 file_id 缓存
-        if vid:
-            entry = cache_get_full(vid)
-            if entry:  # 旧缓存是 str，新缓存是 dict
-                logger.debug(f"命中缓存vid -----> {vid}")
-                if isinstance(entry, dict):
-                    title = entry["title"]
-                    file_id = entry["value"]
-                    rm_data = entry.get("reply")
-                    parse_mode = entry.get("parse_mode") or ParseMode.HTML
-                    special = entry.get("special")
-                else:  # 兼容旧格式
-                    file_id = entry
-                    rm_data = None
-                    parse_mode = ParseMode.HTML
-                    special = ''
+        if ENABLE_CACHE:
+            # 检查 file_id 缓存
+            if vid:
+                entry = cache_get_full(vid)
+                if entry:  # 旧缓存是 str，新缓存是 dict
+                    logger.debug(f"命中缓存vid -----> {vid}")
+                    if isinstance(entry, dict):
+                        title = entry["title"]
+                        file_id = entry["value"]
+                        rm_data = entry.get("reply")
+                        parse_mode = entry.get("parse_mode") or ParseMode.HTML
+                        special = entry.get("special")
+                    else:  # 兼容旧格式
+                        file_id = entry
+                        rm_data = None
+                        parse_mode = ParseMode.HTML
+                        special = ''
 
-                if IMAGES_CACHE_SWITCH and isinstance(file_id, list):  # 图集是否走缓存开关
-                    pass
-                else:
-                    rm_obj = InlineKeyboardMarkup(rm_data) if rm_data else None
-                    await _send_by_file_id(
-                        sender,
-                        file_id,
-                        title,
-                        reply_markup=rm_obj,
-                        parse_mode=parse_mode,
-                        special=special,
-                    )
-                    record.success = True
-                    return record.success
+                    if IMAGES_CACHE_SWITCH and isinstance(file_id, list):  # 图集是否走缓存开关
+                        pass
+                    else:
+                        rm_obj = InlineKeyboardMarkup(rm_data) if rm_data else None
+                        await _send_by_file_id(
+                            sender,
+                            file_id,
+                            title,
+                            reply_markup=rm_obj,
+                            parse_mode=parse_mode,
+                            special=special,
+                        )
+                        record.success = True
+                        return record.success
 
         # ---- 3. 执行核心解析 (I/O密集，放入线程池) ----
         # loop = asyncio.get_running_loop()
